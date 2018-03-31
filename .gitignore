@@ -1,0 +1,19 @@
+Library/
+Temp/
+1.exe
+1_Data
+*.sln
+*.csproj
+*.sln
+*.userprefs
+*.unityproj
+*.DS_Store
+/ClassDiagram1.cd
+.vs/
+obj/
+Assembly-CSharp.csproj.user
+CounterSniper.rar
+Assets/etc.meta
+UnityPlayer.dll
+New Unity Project.rar
+gamesave.sav
