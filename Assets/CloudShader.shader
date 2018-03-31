@@ -2,6 +2,8 @@
 {
 	Properties
 	{
+		_MainTex("MainTex",2D) = "white"{}
+		_CloudTex("CloudTex",2D) = "white"{}
 		_VolumeTex("Texture", 3D) = "white" {}
 		_DetailTex("Detail", 3D) = "white" {}
 		_CoverageTex("CoverageTex", 2D) = "white" {}
@@ -28,7 +30,7 @@
 			}
 			Lighting On
 			LOD 100
-			Blend SrcAlpha OneMinusSrcAlpha
+			//Render to low-res buffer.
 			Pass
 			{
 
@@ -42,7 +44,8 @@
 			#include "Lighting.cginc"
 
 			sampler2D _BlueNoise;
-
+			float4x4 _ProjectionToWorld;
+			sampler2D _CameraDepthTexture;
 			struct appdata
 			{
 				float4 vertex : POSITION;
@@ -51,40 +54,82 @@
 			struct Interpolator {
 				float4 vertex : SV_POSITION;
 				float3 localPos : TEXCOORD0;
-				float3 worldPos : TEXCOORD1;
+				float4 worldPos : TEXCOORD1;
 				float4 screenPos : TEXCOORD2;
 			};
-
 
 			Interpolator vert (appdata v)
 			{
 				Interpolator o;
 				o.vertex = UnityObjectToClipPos(v.vertex);
 				o.localPos = v.vertex;
-				o.worldPos = mul(unity_ObjectToWorld, v.vertex);
+				v.vertex.z = 0.5;
+				o.worldPos = mul(_ProjectionToWorld, (v.vertex - 0.5) * 2);
 				o.screenPos = ComputeScreenPos(o.vertex);
 				return o;
 			}
 			
 			half4 frag (Interpolator i) : SV_Target
 			{
+				float depthValue = LinearEyeDepth(tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(i.screenPos)).r); 
+				//return depthValue;
+				if (depthValue > _ProjectionParams.z - 1) {	//it's far plane.
+					depthValue += 100000;		//makes it work even with very low far plane value.
+				}
 				float2 screenPos = i.screenPos.xy / i.screenPos.w;
-				float noiseSample = (tex2D(_BlueNoise, screenPos * _ScreenParams.xy / 64 + _Time.y * 20).a) - 0.5;
-				float3 worldPos = i.worldPos;
-				float4 localPos = float4(i.localPos,1);
-				float3 viewDir = normalize(lerp(worldPos - _WorldSpaceCameraPos, -UNITY_MATRIX_V[2].xyz, UNITY_MATRIX_P[3][3]));
-				float3 objViewDir = normalize(UnityWorldToObjectDir(viewDir));
-				float3 startPosition = localPos;
-				//float dentisy = GetDentisy(_VolumeTex, startPosition, objViewDir);
+				float noiseSample = (tex2D(_BlueNoise, screenPos * _ScreenParams.xy / 64 + _Time.y * 20).a) ;
+				float3 worldPos = i.worldPos / i.worldPos.w;
+				float3 viewDir = normalize(worldPos - _WorldSpaceCameraPos);
+			//	return float4(worldPos,1);
 				float intensity;
-				float dentisy = GetDentisy(worldPos, viewDir, noiseSample,intensity);
+				float dentisy = GetDentisy(worldPos, viewDir, depthValue, noiseSample,intensity);
 				half3 col = (intensity * _LightColor0);
-				float3 shColor = ShadeSH9(float4(0,1,0, 1));
-				col += shColor;
-			//	return float4(_WorldSpaceLightPos0.xyz, 1);
+				float3 shColor = UNITY_LIGHTMODEL_AMBIENT.xyz;
+				col += shColor * dentisy;
 				return half4(col, dentisy);
 			}
 			ENDCG
+		}
+
+			//Blend low-res buffer with final image.
+			Pass{
+				Cull Off ZWrite Off ZTest Always
+				CGPROGRAM
+				#pragma vertex vert
+				#pragma fragment frag
+
+				#include "UnityCG.cginc"
+
+				struct appdata
+				{
+					float4 vertex : POSITION;
+					float2 uv : TEXCOORD0;
+				};
+
+				struct v2f
+				{
+					float2 uv : TEXCOORD0;
+					float4 vertex : SV_POSITION;
+				};
+
+				v2f vert(appdata v)
+				{
+					v2f o;
+					o.vertex = UnityObjectToClipPos(v.vertex);
+					o.uv = v.uv;
+					return o;
+				}
+
+				sampler2D _MainTex;
+				sampler2D _CloudTex;
+
+				half4 frag(v2f i) : SV_Target
+				{
+					half4 col = tex2D(_CloudTex, i.uv);
+					half4 mcol = tex2D(_MainTex, i.uv);
+					return half4(mcol.rgb * (1 - col.a) + col.rgb,1);	//col.rgb includes intensity itself. don't need to multiply alpha.
+				}
+				ENDCG
 		}
 	}
 }

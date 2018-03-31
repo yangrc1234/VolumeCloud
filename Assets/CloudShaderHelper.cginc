@@ -124,21 +124,22 @@ half SampleEnergyCheap(float3 worldPos, float3 viewDir) {
 	return energy;
 }
 
-float GetDentisy(float3 rayPos, float3 dir,float raymarchOffset, out float intensity) {
+float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raymarchOffset, out float intensity) {
 	float alpha = 0;
 	intensity = 0;
-	rayPos += dir * raymarchOffset * (DETAIL_SAMPLE_STEP_SIZE + CHEAP_SAMPLE_STEP_SIZE);
-	float3 sampleStep = dir * CHEAP_SAMPLE_STEP_SIZE;
+	float raymarchDistance = raymarchOffset * (DETAIL_SAMPLE_STEP_SIZE + CHEAP_SAMPLE_STEP_SIZE);
+	float sampleStep = CHEAP_SAMPLE_STEP_SIZE;
 	bool detailedSample = false;
 	int missedStepCount = 0;
 	[loop]
 	for (int j = 0; j < MAX_SAMPLE_COUNT; j++) {
+		float3 rayPos = startPos + dir * raymarchDistance;
 		float sampleResult = LowresSample(rayPos);
 		if (!detailedSample) {
 			if (sampleResult > 0) {
 				detailedSample = true;
-				rayPos -= sampleStep;
-				sampleStep = dir * DETAIL_SAMPLE_STEP_SIZE;
+				raymarchDistance -= sampleStep;
+				sampleStep = DETAIL_SAMPLE_STEP_SIZE;
 				missedStepCount = 0;
 				continue;
 			}
@@ -148,7 +149,7 @@ float GetDentisy(float3 rayPos, float3 dir,float raymarchOffset, out float inten
 				missedStepCount++;
 				if (missedStepCount > 4) {
 					detailedSample = false;
-					sampleStep = dir * CHEAP_SAMPLE_STEP_SIZE;
+					sampleStep = CHEAP_SAMPLE_STEP_SIZE;
 					continue;
 				}
 			}
@@ -164,15 +165,14 @@ float GetDentisy(float3 rayPos, float3 dir,float raymarchOffset, out float inten
 			}
 			intensity += (1 - alpha) * sampledEnergy * sampledAlpha;
 			alpha += (1 - alpha) * sampledAlpha;
-			//intensity = (1 - sampledAlpha) * intensity + sampledEnergy;
-			//alpha = (1 - sampledAlpha) * alpha + sampledAlpha;
 			if (alpha > 1) {
-				intensity /= alpha;
+				intensity;
 				return 1;
 			}
 		}
-		rayPos += sampleStep;
+		raymarchDistance += sampleStep;
+		if (raymarchDistance > maxSampleDistance)
+			break;
 	}
-	intensity /= alpha;
 	return alpha;
 }

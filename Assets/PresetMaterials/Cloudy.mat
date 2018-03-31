@@ -26,6 +26,10 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _CloudTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _CoverageTex:
         m_Texture: {fileID: 2800000, guid: c73be893af46a1e4db152d42aacae768, type: 3}
         m_Scale: {x: 0.5, y: 0.5}
