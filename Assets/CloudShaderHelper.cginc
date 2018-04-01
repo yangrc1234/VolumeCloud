@@ -1,5 +1,5 @@
 #include "UnityCG.cginc"
-#define MAX_SAMPLE_COUNT 32
+#define MAX_SAMPLE_COUNT 96
 #define CHEAP_SAMPLE_STEP_SIZE (THICKNESS * 6 / MAX_SAMPLE_COUNT)
 #define DETAIL_SAMPLE_STEP_SIZE (CHEAP_SAMPLE_STEP_SIZE / 3)
 
@@ -154,20 +154,22 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 				}
 			}
 			sampleResult = DetailErode(rayPos, sampleResult);
-			float sampledAlpha = sampleResult * DETAIL_SAMPLE_STEP_SIZE;	//换算成alpha值
-			float sampledEnergy;				//能量在rayPos向eyePos的辐射率。
-			if (alpha > 0.3) {
-				sampledEnergy = SampleEnergyCheap(rayPos, dir);				//能量在rayPos向eyePos的辐射率。
-				sampledEnergy = SampleEnergy(rayPos, dir);
-			}
-			else {
-				sampledEnergy = SampleEnergy(rayPos, dir);				//能量在rayPos向eyePos的辐射率。
-			}
-			intensity += (1 - alpha) * sampledEnergy * sampledAlpha;
-			alpha += (1 - alpha) * sampledAlpha;
-			if (alpha > 1) {
-				intensity;
-				return 1;
+			if (sampleResult > 0) {
+				float sampledAlpha = sampleResult * DETAIL_SAMPLE_STEP_SIZE;	//换算成alpha值
+				float sampledEnergy;				//能量在rayPos向eyePos的辐射率。
+				if (alpha > 0.3) {
+					sampledEnergy = SampleEnergyCheap(rayPos, dir);				//能量在rayPos向eyePos的辐射率。
+					sampledEnergy = SampleEnergy(rayPos, dir);
+				}
+				else {
+					sampledEnergy = SampleEnergy(rayPos, dir);				//能量在rayPos向eyePos的辐射率。
+				}
+				intensity += (1 - alpha) * sampledEnergy * sampledAlpha;
+				alpha += (1 - alpha) * sampledAlpha;
+				if (alpha > 1) {
+					intensity;
+					return 1;
+				}
 			}
 		}
 		raymarchDistance += sampleStep;

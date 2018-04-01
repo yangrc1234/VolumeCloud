@@ -4,94 +4,63 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 [ExecuteInEditMode,RequireComponent(typeof(Camera))]
-    public class CloudVolumeRenderer : MonoBehaviour {
+    public class CloudVolumeRenderer : EffectBase {
     public Material mat;
-    public Shader bilateralBlurShader;
-    private RenderTexture halfresCloudBuffer;
-    private RenderTexture fullresCloudBuffer;
-    private RenderTexture cloudBuffer;
-    private RenderTexture halfresDepth;
-    private new Camera camera;
-    private Material blurMat {
-        get {
-            return _blurMat == null ? _blurMat = new Material(bilateralBlurShader) : _blurMat;
-        }
-    }
-    private Material _blurMat;
-    private bool requireRefresh = true;
+    private RenderTexture[] fullBuffer;
+    private int fullBufferIndex;
+    private RenderTexture lowresBuffer;
+    private Matrix4x4 lastFrameVP;
+    private new Camera mcam;
+    // The index of 4x4 pixels.
+    private int frameIndex = 0;
+
+    private static int[,] offset = new int[16, 2];
 
     private void OnEnable() {
-        requireRefresh = true;
+        SetupOffsets();
+        ChangeResolution();
     }
 
-    private void OnValidate() {
-        requireRefresh = true;
-    }
-
-    private void Update() {
-        if (halfresCloudBuffer == null || fullresCloudBuffer == null || cloudBuffer == null || halfresDepth == null) {
-            requireRefresh = true;
+    void SetupOffsets() {
+        int index = 0;
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                offset[index, 0] = i;
+                offset[index++, 1] = j;
+            }
         }
     }
 
     void ChangeResolution() {
-        requireRefresh = false;
-        var width = camera.pixelWidth;
-        var height = camera.pixelHeight;
-
-        if (halfresCloudBuffer != null) {
-            halfresCloudBuffer.Release();
-        }
-        halfresCloudBuffer = new RenderTexture(width/2, height/2, 0, RenderTextureFormat.ARGBHalf);
-        halfresCloudBuffer.Create();
-        halfresCloudBuffer.name = "HalfresCloud";
-        blurMat.SetTexture("_HalfResColor", halfresCloudBuffer);
-
-        if (cloudBuffer != null) {
-            cloudBuffer.Release();
-        }
-        cloudBuffer = new RenderTexture(width, height, 0, RenderTextureFormat.ARGBHalf);
-        cloudBuffer.Create();
-        cloudBuffer.name = "CloudBuffer";
-        mat.SetTexture("_CloudTex", cloudBuffer);
-
-        if (halfresDepth != null) {
-            halfresDepth.Release();
-        }
-        halfresDepth = new RenderTexture(width/2, height/2, 0, RenderTextureFormat.ARGBHalf);
-        halfresDepth.Create();
-        halfresDepth.name = "HalfresDepth";
-        halfresDepth.filterMode = FilterMode.Point;
-        blurMat.SetTexture("_HalfResDepthBuffer", halfresDepth);
+        
     }
 
     private void OnRenderImage(RenderTexture source, RenderTexture destination) {
-        if (requireRefresh) {
-            ChangeResolution();
-        }
-        Camera cam = Camera.current;
-        mat.SetMatrix("_ProjectionToWorld", cam.cameraToWorldMatrix * cam.projectionMatrix.inverse);
-        var camTexture = RenderTexture.active;
-        /*
-                RenderTexture temp = RenderTexture.GetTemporary(cam.pixelWidth / 2, cam.pixelHeight / 2, 0, RenderTextureFormat.ARGBHalf);
+        mcam = GetComponent<Camera>();
+        var width = mcam.pixelWidth;
+        var height = mcam.pixelHeight;
 
-                //half-res depthtex.
-                Graphics.Blit(null, halfresDepth, blurMat, 4);
+        EnsureArray(ref fullBuffer, 2);
+        EnsureRenderTarget(ref fullBuffer[0], width, height, RenderTextureFormat.ARGBHalf, FilterMode.Bilinear);
+        EnsureRenderTarget(ref fullBuffer[1], width, height, RenderTextureFormat.ARGBHalf, FilterMode.Bilinear);
+        EnsureRenderTarget(ref lowresBuffer, width /4 , height/4, RenderTextureFormat.ARGBHalf, FilterMode.Point);
 
-                //Draw cloud to temp.
-                Graphics.Blit(null, halfresCloudBuffer, mat, 0);
-                //Do upscale.
-                Graphics.Blit(halfresCloudBuffer, temp, blurMat, 2);
-                Graphics.Blit(temp, halfresCloudBuffer, blurMat, 3); 
-                //upscale
-                Graphics.Blit(halfresCloudBuffer, cloudBuffer, blurMat, 5);
-                mat.SetTexture("_CloudTex", cloudBuffer);
-                Graphics.Blit(source, destination, mat,1);
-                temp.Release();
-                */
+        frameIndex = (frameIndex + 1)% 16;
+        fullBufferIndex = (fullBufferIndex + 1) % 2;
 
-        //Draw cloud to temp.
-        Graphics.Blit(null, cloudBuffer, mat, 0);
-        Graphics.Blit(source, destination, mat, 1);
+        //1. Render low-res buffer.
+        float offsetX = (float)offset[frameIndex, 0] ;
+        float offsetY = (float)offset[frameIndex, 1] ;
+        var jitteredProjectionMatrix = mcam.GetProjectionMatrix(offsetX, offsetY);
+        mat.SetMatrix("_ProjectionToWorld", mcam.cameraToWorldMatrix * jitteredProjectionMatrix.inverse);
+        Graphics.Blit(null, lowresBuffer, mat, 0);
+        
+        //2. Blit low-res buffer with previous image to make full-res result.
+        mat.SetVector("_Jitter", new Vector2(offsetX, offsetY));
+        mat.SetTexture("_LowresCloudTex", lowresBuffer);
+        //No reprojection is done here. see static first.
+        Graphics.Blit(fullBuffer[fullBufferIndex], fullBuffer[fullBufferIndex ^ 1], mat, 1);
+
+        //3. blit full-res result with final image.
     }
 }

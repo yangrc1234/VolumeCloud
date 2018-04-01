@@ -116,4 +116,4 @@ Material:
     - _Cutoff: {r: 0.44, g: 0.99, b: 0.99, a: 0.99}
     - _DetailCutoff: {r: 0.99, g: 0.99, b: 0, a: 0}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
-    - _WindDirection: {r: 0, g: 1, b: 200, a: 0}
+    - _WindDirection: {r: 0, g: 1, b: 0, a: 0}

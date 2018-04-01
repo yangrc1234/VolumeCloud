@@ -91,7 +91,7 @@
 			ENDCG
 		}
 
-			//Blend low-res buffer with final image.
+			//Blend low-res buffer with previmage to make final image.
 			Pass{
 				Cull Off ZWrite Off ZTest Always
 				CGPROGRAM
@@ -120,14 +120,23 @@
 					return o;
 				}
 
-				sampler2D _MainTex;
-				sampler2D _CloudTex;
+				sampler2D _MainTex;	//this is previous full-resolution tex.
+				float4 _MainTex_TexelSize;
+				sampler2D _LowresCloudTex;	//current low-resolution tex.
+				float2 _Jitter;		//jitter when rendering _LowresCloudTex in texel count.
 
 				half4 frag(v2f i) : SV_Target
 				{
-					half4 col = tex2D(_CloudTex, i.uv);
-					half4 mcol = tex2D(_MainTex, i.uv);
-					return half4(mcol.rgb * (1 - col.a) + col.rgb,1);	//col.rgb includes intensity itself. don't need to multiply alpha.
+					float2 texelPos = i.uv * _MainTex_TexelSize.zw;
+					half4 prevSample = tex2D(_MainTex, i.uv);
+					half2 currSampleTexel = texelPos - _Jitter;
+					half2 currSamplePos = currSampleTexel * _MainTex_TexelSize.xy;
+					half4 currSample = tex2D(_LowresCloudTex, currSamplePos);
+					float2 currSampleValid = 0;	//Only if currsample is really the one in lowres buffer, then we use it.
+					currSampleValid = step(frac(currSampleTexel / 4), 0.2);
+				//	currSample.a *= currSampleValid.x * currSampleValid.y;
+					return lerp(prevSample, currSample, currSampleValid.x * currSampleValid.y);
+					//return half4(prevSample.rgb * (1 - currSample.a) + currSample.rgb * currSample.a,1);	//col.rgb includes intensity itself. don't need to multiply alpha.
 				}
 				ENDCG
 		}
