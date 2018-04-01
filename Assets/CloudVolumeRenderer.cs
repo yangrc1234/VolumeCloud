@@ -58,9 +58,12 @@ using UnityEngine.Rendering;
         //2. Blit low-res buffer with previous image to make full-res result.
         mat.SetVector("_Jitter", new Vector2(offsetX, offsetY));
         mat.SetTexture("_LowresCloudTex", lowresBuffer);
+        mat.SetMatrix("_PrevVP", lastFrameVP);    //Thank Untiy with this magic property.
+        mat.SetMatrix("_ProjectionToWorld", mcam.cameraToWorldMatrix * mcam.projectionMatrix.inverse);
         //No reprojection is done here. see static first.
         Graphics.Blit(fullBuffer[fullBufferIndex], fullBuffer[fullBufferIndex ^ 1], mat, 1);
 
         //3. blit full-res result with final image.
+        lastFrameVP = mcam.projectionMatrix * mcam.worldToCameraMatrix;
     }
 }

@@ -80,7 +80,6 @@
 				float noiseSample = (tex2D(_BlueNoise, screenPos * _ScreenParams.xy / 64 + _Time.y * 20).a) ;
 				float3 worldPos = i.worldPos / i.worldPos.w;
 				float3 viewDir = normalize(worldPos - _WorldSpaceCameraPos);
-			//	return float4(worldPos,1);
 				float intensity;
 				float dentisy = GetDentisy(worldPos, viewDir, depthValue, 0,intensity);
 				half3 col = (intensity * _LightColor0);
@@ -100,6 +99,15 @@
 
 				#include "UnityCG.cginc"
 
+
+				sampler2D _MainTex;	//this is previous full-resolution tex.
+				sampler2D _LowresCloudTex;	//current low-resolution tex.
+				float4 _MainTex_TexelSize;
+				float2 _Jitter;		//jitter when rendering _LowresCloudTex in texel count.
+				float4x4 _PrevVP;	//View projection matrix of last frame.
+				float4x4 _ProjectionToWorld;	//used to reconstruct worldPos from depth.
+				sampler2D _CameraDepthTexture;
+
 				struct appdata
 				{
 					float4 vertex : POSITION;
@@ -110,6 +118,7 @@
 				{
 					float2 uv : TEXCOORD0;
 					float4 vertex : SV_POSITION;
+					float4 worldPos : TEXCOORD1;
 				};
 
 				v2f vert(appdata v)
@@ -117,27 +126,46 @@
 					v2f o;
 					o.vertex = UnityObjectToClipPos(v.vertex);
 					o.uv = v.uv;
+					v.vertex.z = 0.5;
+					o.worldPos = mul(_ProjectionToWorld, (v.vertex - 0.5) * 2);
 					return o;
 				}
 
-				sampler2D _MainTex;	//this is previous full-resolution tex.
-				float4 _MainTex_TexelSize;
-				sampler2D _LowresCloudTex;	//current low-resolution tex.
-				float2 _Jitter;		//jitter when rendering _LowresCloudTex in texel count.
+				half4 SamplePrev(float2 uv,float3 viewDir) {
+					float3 worldPos = _WorldSpaceCameraPos + viewDir * 1000;
+					float4 prevUV = mul(_PrevVP, worldPos);
+					half4 prevSample = tex2D(_MainTex, 0.5 * prevUV.xy / prevUV.w + 0.5);
+					return prevSample;
+				}
 
-				half4 frag(v2f i) : SV_Target
-				{
-					float2 texelPos = i.uv * _MainTex_TexelSize.zw - 0.5;
-					half4 prevSample = tex2D(_MainTex, i.uv);
+				half4 SampleCurrent(float2 uv) {
+					float2 texelPos = uv * _MainTex_TexelSize.zw - 0.5;
 					half2 currSampleTexel = texelPos - _Jitter;
 					half2 currSamplePos = currSampleTexel * _MainTex_TexelSize.xy;
 					half4 currSample = tex2D(_LowresCloudTex, currSamplePos);
-					//return currSample;
-					float2 currSampleValid = 0;	//Only if currsample is really the one in lowres buffer, then we use it.
-					currSampleValid = step(frac((currSampleTexel + 0.5)/ 4), .2);
-				//	currSample.a *= currSampleValid.x * currSampleValid.y;
-					return lerp(prevSample, currSample, currSampleValid.x * currSampleValid.y);
-					//return half4(prevSample.rgb * (1 - currSample.a) + currSample.rgb * currSample.a,1);	//col.rgb includes intensity itself. don't need to multiply alpha.
+					return currSample;
+				}
+
+				half CurrentCorrect(float2 uv) {
+					float2 currSampleValid = 0;
+					float2 texelPos = uv * _MainTex_TexelSize.zw - 0.5;
+					half2 currSampleTexel = texelPos - _Jitter;
+					currSampleValid = step(frac((currSampleTexel + 0.5) / 4), .2);
+					return currSampleValid.x * currSampleValid.y;
+				}
+
+				half4 frag(v2f i) : SV_Target
+				{
+					float3 worldPos = i.worldPos.xyz / i.worldPos.w;
+					float3 viewDir = normalize(worldPos - _WorldSpaceCameraPos);
+					float3 test = _WorldSpaceCameraPos + viewDir * 100;
+					float4 prevUV = mul(_PrevVP, test);
+					 
+					half4 prevSample = SamplePrev(i.uv, viewDir);
+				//	return prevSample;
+					half4 currSample = SampleCurrent(i.uv);
+					half correct = CurrentCorrect(i.uv);
+					return lerp(prevSample, currSample, correct);
 				}
 				ENDCG
 		}
