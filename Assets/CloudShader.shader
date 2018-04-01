@@ -131,43 +131,83 @@
 					return o;
 				}
 
-				half4 SamplePrev(float2 uv,float3 viewDir) {
-					float3 worldPos = _WorldSpaceCameraPos + viewDir * 1000;
-					float4 prevUV = mul(_PrevVP, worldPos);
-					half4 prevSample = tex2D(_MainTex, 0.5 * prevUV.xy / prevUV.w + 0.5);
+				half4 SamplePrev(float2 uv,float3 viewDir,out half outOfBound) {
+					float3 worldPos = _WorldSpaceCameraPos + viewDir * 4000;
+					float4 prevUV = mul(_PrevVP, float4(worldPos,1));
+					prevUV.xy = 0.5 * (prevUV.xy / prevUV.w) + 0.5;
+					half oobmax = max(0.0 - prevUV.x,0.0 - prevUV.y);
+					half oobmin = max(prevUV.x - 1.0, prevUV.y - 1.0);
+					outOfBound = step(0,max(oobmin, oobmax));
+					half4 prevSample = tex2D(_MainTex, prevUV.xy);
 					return prevSample;
 				}
 
 				half4 SampleCurrent(float2 uv) {
-					float2 texelPos = uv * _MainTex_TexelSize.zw - 0.5;
-					half2 currSampleTexel = texelPos - _Jitter;
-					half2 currSamplePos = currSampleTexel * _MainTex_TexelSize.xy;
-					half4 currSample = tex2D(_LowresCloudTex, currSamplePos);
+					half4 currSample = tex2D(_LowresCloudTex, uv - _Jitter * _MainTex_TexelSize.xy);
 					return currSample;
 				}
 
 				half CurrentCorrect(float2 uv) {
 					float2 currSampleValid = 0;
-					float2 texelPos = uv * _MainTex_TexelSize.zw - 0.5;
+					float2 texelPos = uv * _MainTex_TexelSize.zw;
 					half2 currSampleTexel = texelPos - _Jitter;
-					currSampleValid = step(frac((currSampleTexel + 0.5) / 4), .2);
+					currSampleValid = step(frac((currSampleTexel) / 4), .2);
 					return currSampleValid.x * currSampleValid.y;
 				}
 
 				half4 frag(v2f i) : SV_Target
 				{
-					float3 worldPos = i.worldPos.xyz / i.worldPos.w;
+					float3 worldPos = i.worldPos / i.worldPos.w;
 					float3 viewDir = normalize(worldPos - _WorldSpaceCameraPos);
-					float3 test = _WorldSpaceCameraPos + viewDir * 100;
-					float4 prevUV = mul(_PrevVP, test);
-					 
-					half4 prevSample = SamplePrev(i.uv, viewDir);
-				//	return prevSample;
+					half outOfBound;
+					half4 prevSample = SamplePrev(i.uv, viewDir, outOfBound);
 					half4 currSample = SampleCurrent(i.uv);
-					half correct = CurrentCorrect(i.uv);
+					half correct = max(CurrentCorrect(i.uv),outOfBound);
 					return lerp(prevSample, currSample, correct);
 				}
 				ENDCG
 		}
+
+			//Blend low-res buffer with previmage to make final image.
+			Pass{
+					Cull Off ZWrite Off ZTest Always
+					CGPROGRAM
+#pragma vertex vert
+#pragma fragment frag
+
+#include "UnityCG.cginc"
+
+				sampler2D _MainTex;	//Final image without cloud.
+				sampler2D _CloudTex;	//The full resolution cloud tex we generated.
+			//	sampler2D _CameraDepthTexture;
+
+				struct appdata
+				{
+					float4 vertex : POSITION;
+					float2 uv : TEXCOORD0;
+				};
+
+				struct v2f
+				{
+					float2 uv : TEXCOORD0;
+					float4 vertex : SV_POSITION;
+				};
+
+				v2f vert(appdata v)
+				{
+					v2f o;
+					o.vertex = UnityObjectToClipPos(v.vertex);
+					o.uv = v.uv;
+					return o;
+				}
+
+				half4 frag(v2f i) : SV_Target
+				{
+					half4 mcol = tex2D(_MainTex,i.uv);
+					half4 col = tex2D(_CloudTex, i.uv);
+					return half4(mcol.rgb * (1 - col.a) + col.rgb * col.a,1);
+				}
+					ENDCG
+				}
 	}
 }

@@ -64,6 +64,10 @@ using UnityEngine.Rendering;
         Graphics.Blit(fullBuffer[fullBufferIndex], fullBuffer[fullBufferIndex ^ 1], mat, 1);
 
         //3. blit full-res result with final image.
+        mat.SetTexture("_CloudTex", fullBuffer[fullBufferIndex ^ 1]);
+        Graphics.Blit(source, destination, mat, 2);
+
+        //4. Cleanup
         lastFrameVP = mcam.projectionMatrix * mcam.worldToCameraMatrix;
     }
 }
