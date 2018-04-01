@@ -82,7 +82,7 @@
 				float3 viewDir = normalize(worldPos - _WorldSpaceCameraPos);
 			//	return float4(worldPos,1);
 				float intensity;
-				float dentisy = GetDentisy(worldPos, viewDir, depthValue, noiseSample,intensity);
+				float dentisy = GetDentisy(worldPos, viewDir, depthValue, 0,intensity);
 				half3 col = (intensity * _LightColor0);
 				float3 shColor = UNITY_LIGHTMODEL_AMBIENT.xyz;
 				col += shColor * dentisy;
@@ -127,13 +127,14 @@
 
 				half4 frag(v2f i) : SV_Target
 				{
-					float2 texelPos = i.uv * _MainTex_TexelSize.zw;
+					float2 texelPos = i.uv * _MainTex_TexelSize.zw - 0.5;
 					half4 prevSample = tex2D(_MainTex, i.uv);
 					half2 currSampleTexel = texelPos - _Jitter;
 					half2 currSamplePos = currSampleTexel * _MainTex_TexelSize.xy;
 					half4 currSample = tex2D(_LowresCloudTex, currSamplePos);
+					//return currSample;
 					float2 currSampleValid = 0;	//Only if currsample is really the one in lowres buffer, then we use it.
-					currSampleValid = step(frac(currSampleTexel / 4), 0.2);
+					currSampleValid = step(frac((currSampleTexel + 0.5)/ 4), .2);
 				//	currSample.a *= currSampleValid.x * currSampleValid.y;
 					return lerp(prevSample, currSample, currSampleValid.x * currSampleValid.y);
 					//return half4(prevSample.rgb * (1 - currSample.a) + currSample.rgb * currSample.a,1);	//col.rgb includes intensity itself. don't need to multiply alpha.
