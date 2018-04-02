@@ -32,7 +32,7 @@ Material:
         m_Offset: {x: 0, y: 0}
     - _CoverageTex:
         m_Texture: {fileID: 2800000, guid: c73be893af46a1e4db152d42aacae768, type: 3}
-        m_Scale: {x: 0.5, y: 0.5}
+        m_Scale: {x: 4, y: 4}
         m_Offset: {x: 0, y: 0}
     - _DetailAlbedoMap:
         m_Texture: {fileID: 0}
@@ -83,10 +83,10 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Floats:
-    - _BeerLaw: 1
+    - _BeerLaw: 5
     - _BumpScale: 1
-    - _CloudDentisy: 1
-    - _CloudSize: 12000
+    - _CloudDentisy: 0.1
+    - _CloudSize: 50000
     - _CondenseDensity: 0.001
     - _Cover: 0.63
     - _Cutoff: 0.1
@@ -98,13 +98,15 @@ Material:
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1
-    - _HgG: 0.2
+    - _HgG: 0.99
     - _Metallic: 0
     - _Mode: 0
-    - _Occlude: 512
+    - _Occlude: 63.16
     - _OcclusionStrength: 1
     - _Parallax: 0.02
     - _Powder: 20
+    - _SilverIntensity: 0.75
+    - _SilverSpread: 0.75
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
@@ -116,4 +118,5 @@ Material:
     - _Cutoff: {r: 0.44, g: 0.99, b: 0.99, a: 0.99}
     - _DetailCutoff: {r: 0.99, g: 0.99, b: 0, a: 0}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
-    - _WindDirection: {r: 1, g: 1, b: 200, a: 0}
+    - _WindDirection: {r: 1, g: 1, b: 400, a: 0}
+    - debug: {r: -1.97, g: -0.69, b: 1, a: 0}

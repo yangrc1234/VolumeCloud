@@ -10,7 +10,8 @@ using UnityEngine.Rendering;
     private RenderTexture[] fullBuffer;
     private int fullBufferIndex;
     private RenderTexture lowresBuffer;
-    private Matrix4x4 lastFrameVP;
+    private Matrix4x4 currP;
+    private Matrix4x4 prevV;
     private new Camera mcam;
     // The index of 4x4 pixels.
     private int frameIndex = 0;
@@ -49,19 +50,19 @@ using UnityEngine.Rendering;
         frameIndex = (frameIndex + 1)% 16;
         fullBufferIndex = (fullBufferIndex + 1) % 2;
 
+        /* Some code is taken from playdead TAA. */
+
         //1. Render low-res buffer.
         float offsetX = (float)offset[frameIndex, 0] ;
         float offsetY = (float)offset[frameIndex, 1] ;
-        var jitteredProjectionMatrix = mcam.GetProjectionMatrix(offsetX, offsetY);
-        mat.SetMatrix("_ProjectionToWorld", mcam.cameraToWorldMatrix * jitteredProjectionMatrix.inverse);
+        mat.SetVector("_ProjectionExtents", mcam.GetProjectionExtents(offsetX,offsetY));
         Graphics.Blit(null, lowresBuffer, mat, 0);
         
         //2. Blit low-res buffer with previous image to make full-res result.
         mat.SetVector("_Jitter", new Vector2(offsetX, offsetY));
         mat.SetTexture("_LowresCloudTex", lowresBuffer);
-        mat.SetMatrix("_PrevVP", lastFrameVP);    //Thank Untiy with this magic property.
-        mat.SetMatrix("_ProjectionToWorld", mcam.cameraToWorldMatrix * mcam.projectionMatrix.inverse);
-        //No reprojection is done here. see static first.
+        mat.SetMatrix("_PrevVP", GL.GetGPUProjectionMatrix(mcam.projectionMatrix,false) * prevV);    //Thank Untiy with this magic property.
+        mat.SetVector("_ProjectionExtents", mcam.GetProjectionExtents());   //repeat to avoid typo;
         Graphics.Blit(fullBuffer[fullBufferIndex], fullBuffer[fullBufferIndex ^ 1], mat, 1);
 
         //3. blit full-res result with final image.
@@ -69,6 +70,6 @@ using UnityEngine.Rendering;
         Graphics.Blit(source, destination, mat, 2);
 
         //4. Cleanup
-        lastFrameVP = mcam.projectionMatrix * mcam.worldToCameraMatrix;
+        prevV = mcam.worldToCameraMatrix;
     }
 }

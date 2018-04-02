@@ -85,7 +85,7 @@ Material:
     m_Floats:
     - _BeerLaw: 1
     - _BumpScale: 1
-    - _CloudDentisy: 1
+    - _CloudDentisy: 0.2
     - _CloudSize: 12000
     - _CondenseDensity: 0.001
     - _Cover: 0.63
@@ -105,10 +105,12 @@ Material:
     - _OcclusionStrength: 1
     - _Parallax: 0.02
     - _Powder: 2
+    - _SilverIntensity: 0.2
+    - _SilverSpread: 0.5
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
-    - _Transcluency: 2048
+    - _Transcluency: 1024
     - _UVSec: 0
     - _ZWrite: 1
     m_Colors:

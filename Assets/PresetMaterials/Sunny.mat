@@ -86,25 +86,27 @@ Material:
     - _BeerLaw: 1
     - _BumpScale: 1
     - _CloudDentisy: 0.1
-    - _CloudSize: 12000
+    - _CloudSize: 50000
     - _CondenseDensity: 0.001
     - _Cover: 0.63
-    - _Cutoff: 0.21
+    - _Cutoff: 0.1
     - _Detail: 1
-    - _DetailMask: 0.05
+    - _DetailMask: 0.1
     - _DetailNormalMapScale: 1
-    - _DetailTile: 0.32
+    - _DetailTile: 0.1
     - _DstBlend: 0
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1
-    - _HgG: 0.2
+    - _HgG: 0.99
     - _Metallic: 0
     - _Mode: 0
-    - _Occlude: 512
+    - _Occlude: 64
     - _OcclusionStrength: 1
     - _Parallax: 0.02
     - _Powder: 20
+    - _SilverIntensity: 1.25
+    - _SilverSpread: 0.75
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1

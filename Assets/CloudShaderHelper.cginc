@@ -12,17 +12,17 @@ sampler2D _CoverageTex;
 float4 _CoverageTex_ST;
 sampler2D _DetailNoiseTex;
 float _CloudSize;
-float _Cutoff;
-float _Detail;
-half4 _DetailCutoff;
 float _DetailTile;
 float _Transcluency;
-float _Occlude;
-float _HgG;
 float _DetailMask;
 float _CloudDentisy;
 float _BeerLaw;
 half4 _WindDirection;
+float _SilverIntensity;
+float _SilverSpread;
+
+float LowresSample(float3 worldPos, int lod);
+float FullSample(float3 worldPos, int lod);
 
 float Remap(float original_value, float original_min, float original_max, float new_min, float new_max)
 {
@@ -40,20 +40,38 @@ float HenryGreenstein(float g, float cosTheta) {
 	float denominator = pow(1 + g * g - 2 * g * cosTheta, 1.5);
 	return pif * numerator / denominator;
 }
-//TODO: add "powder" effect.
-float Energy(float d, float cosTheta) {
-	return exp(-d * _BeerLaw) * HenryGreenstein(_HgG, cosTheta);// *(1.0 - (1 - cosTheta) / 2 * exp(-_Powder * d));
+
+float BeerLaw(float d, float cosTheta) {
+	d *= _BeerLaw;
+	float firstIntes = exp(-d);
+	float secondIntens = exp(-d * 0.25) * 0.7;
+	float secondIntensCurve = 0.5;
+	float tmp = max(firstIntes, secondIntens * RemapClamped(cosTheta, 0.7, 1.0, secondIntensCurve, secondIntensCurve * 0.7));
+	return tmp;
 }
 
-float LowresSample(float3 worldPos) {
+float Inscatter(float3 worldPos,float dl) {
+	float heightPercent = saturate((worldPos.y - CENTER + THICKNESS / 2) / THICKNESS);
+	float lodded_density = saturate(FullSample(worldPos, 1));
+	float depth_probability = 0.05 + pow(saturate(lodded_density), RemapClamped(heightPercent, 0.3, 0.85, 0.5, 2.0));
+	depth_probability = lerp(depth_probability, 1.0, saturate((1-dl) / 10));		//I think the original one in ppt is wrong.(or they use dl as "brigtness" rather than "occlusion"
+	float vertical_probability = pow(max(0, Remap(heightPercent, 0.07, 0.14, 0.1, 1.0)), 0.8);
+	return saturate(depth_probability * vertical_probability);
+}
+
+float Energy(float3 worldPos, float d, float cosTheta) {
+	float hgImproved = max(HenryGreenstein(0.05, cosTheta), _SilverIntensity * HenryGreenstein(0.99 - _SilverSpread, cosTheta));
+	return Inscatter(worldPos, d) * hgImproved * BeerLaw(d, cosTheta);
+}
+
+float LowresSample(float3 worldPos,int lod) {
 
 	float heightPercent = saturate((worldPos.y - CENTER + THICKNESS / 2) / THICKNESS);
 	fixed4 tempResult;
 	half3 uvw = worldPos;
 	uvw.xz += _WindDirection.xy * _WindDirection.z * _Time.y;
-//	uvw.xz += _WindDirection.xy * heightPercent * 500;
 	uvw = uvw / _CloudSize;
-	tempResult = tex3Dlod(_VolumeTex, half4(uvw, 0)).rgba;
+	tempResult = tex3Dlod(_VolumeTex, half4(uvw, lod)).rgba;
 	float low_freq_fBm = (tempResult.g * 0.625) + (tempResult.b * 0.25) + (tempResult.a * 0.125);
 
 	// define the base cloud shape by dilating it with the low frequency fBm made of Worley noise.
@@ -70,7 +88,7 @@ float LowresSample(float3 worldPos) {
 	//coverage = pow(coverage, RemapClamped(heightPercent, 0.7, 0.8, 1.0, lerp(1.0, 0.5, 0.5)));
 
 	//This doesn't work at all! 
-	//sampleResult = RemapClamped(sampleResult, 1 - coverage, 1.0, 0.0, 1.0);
+	//sampleResult = RemapClamped(sampleResult, coverage, 1.0, 0.0, 1.0);
 	
 	//Just use the old fashion way.
 	sampleResult *= coverage;
@@ -79,27 +97,24 @@ float LowresSample(float3 worldPos) {
 	return sampleResult;
 }
 
-float DetailErode(float3 worldPos, float lowresSample) {
+float DetailErode(float3 worldPos, float lowresSample, int lod) {
 	//return lowresSample;
 	float3 tempResult;
 	half3 uvw = worldPos / (_DetailTile * _CloudSize);
 	//tex2Dlod(_DetailNoiseTex, half4(uvw.x, 0));
-	tempResult = tex3Dlod(_DetailTex, half4(uvw, 0)).rgb;
+	tempResult = tex3Dlod(_DetailTex, half4(uvw, lod)).rgb;
 	// build High frequency Worley noise fBm
 	float sampleResult = (tempResult.r * 0.625) + (tempResult.g * 0.25) + (tempResult.b * 0.125);
 
 	float heightPercent = saturate((worldPos.y - CENTER + THICKNESS / 2) / THICKNESS);
 	float high_freq_noise_modifier = lerp(sampleResult, 1.0 - sampleResult, saturate(heightPercent * 10.0));
 
-	float edge = saturate(_DetailMask - lowresSample ) / _DetailMask;
-	//return saturate(lowresSample - _DetailMask * edge * sampleResult );
-
 	return Remap(lowresSample, high_freq_noise_modifier * 0.2, 1.0, 0.0, 1.0);
 }
 
-float FullSample(float3 worldPos) {
-	float sampleResult = LowresSample(worldPos);
-	sampleResult = DetailErode(worldPos, sampleResult);
+float FullSample(float3 worldPos, int lod) {
+	float sampleResult = LowresSample(worldPos, lod);
+	sampleResult = DetailErode(worldPos, sampleResult, lod);
 	return max(sampleResult,0);
 }
 
@@ -109,7 +124,7 @@ half rand(half3 co)
 }
 
 float SampleEnergy(float3 worldPos, float3 viewDir) {
-	return 0.01;
+	//return 0.001;
 #define DETAIL_ENERGY_SAMPLE_COUNT 6
 	float totalSample = 0;
 	//return 0.001;
@@ -119,28 +134,13 @@ float SampleEnergy(float3 worldPos, float3 viewDir) {
 		direction = normalize(direction);
 		float3 samplePoint = worldPos 
 			+ (direction * i / DETAIL_ENERGY_SAMPLE_COUNT) * _Transcluency;
-		totalSample += FullSample(samplePoint);
+		totalSample += FullSample(samplePoint, 0);
 	}
-	float energy = Energy(totalSample / DETAIL_ENERGY_SAMPLE_COUNT * _Occlude, dot(viewDir, _WorldSpaceLightPos0));	//TODO: figure out how HG works.
+	float energy = Energy(worldPos ,totalSample / DETAIL_ENERGY_SAMPLE_COUNT, dot(viewDir, _WorldSpaceLightPos0));
 	return energy;
 }
 
-half SampleEnergyCheap(float3 worldPos, float3 viewDir) {
-#define CHEAP_ENERGY_SAMPLE_COUNT 2
-	float totalSample = 0;
-	for (float i = 1; i <= CHEAP_ENERGY_SAMPLE_COUNT; i++) {
-		half3 rand3 = half3(rand(half3(0, i, 0)), rand(half3(1, i, 0)), rand(half3(0, i, 1)));
-		half3 direction = _WorldSpaceLightPos0 * 2 + normalize(rand3);
-		direction = normalize(direction);
-		float3 samplePoint = worldPos
-			+ (direction * i / CHEAP_ENERGY_SAMPLE_COUNT) * _Transcluency;
-		totalSample += FullSample(samplePoint);
-	}
-	float energy = Energy(totalSample / CHEAP_ENERGY_SAMPLE_COUNT * _Occlude, dot(viewDir, _WorldSpaceLightPos0));	//TODO: figure out how HG works.
-	return energy;
-}
-
-float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raymarchOffset, out float intensity) {
+float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raymarchOffset, out float intensity,out float depth) {
 	float alpha = 0;
 	intensity = 0;
 	float raymarchDistance = raymarchOffset * (DETAIL_SAMPLE_STEP_SIZE + CHEAP_SAMPLE_STEP_SIZE);
@@ -150,7 +150,7 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 	[loop]
 	for (int j = 0; j < MAX_SAMPLE_COUNT; j++) {
 		float3 rayPos = startPos + dir * raymarchDistance;
-		float sampleResult = LowresSample(rayPos);
+		float sampleResult = LowresSample(rayPos,0);
 		if (!detailedSample) {
 			if (sampleResult > 0) {
 				detailedSample = true;
@@ -169,18 +169,16 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 					continue;
 				}
 			}
-			sampleResult = DetailErode(rayPos, sampleResult);
+			sampleResult = DetailErode(rayPos, sampleResult, 0);
 			if (sampleResult > 0) {
 				float sampledAlpha = sampleResult * DETAIL_SAMPLE_STEP_SIZE * _CloudDentisy;	//换算成alpha值
 				float sampledEnergy;				//能量在rayPos向eyePos的辐射率。
-				if (alpha > 0.3) {
-					sampledEnergy = SampleEnergyCheap(rayPos, dir);				//能量在rayPos向eyePos的辐射率。
-					sampledEnergy = SampleEnergy(rayPos, dir);
-				}
-				else {
-					sampledEnergy = SampleEnergy(rayPos, dir);				//能量在rayPos向eyePos的辐射率。
-				}
+				sampledEnergy = SampleEnergy(rayPos, dir);
 				intensity += (1 - alpha) * sampledEnergy * sampledAlpha;
+				if (alpha < 0.5 && alpha + (1 - alpha) * sampledAlpha >= 0.5) {
+					//record depth.
+					depth = raymarchDistance;
+				}
 				alpha += (1 - alpha) * sampledAlpha;
 				if (alpha > 1) {
 					intensity;
