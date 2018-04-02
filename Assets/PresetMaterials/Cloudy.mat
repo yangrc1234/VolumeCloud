@@ -85,7 +85,7 @@ Material:
     m_Floats:
     - _BeerLaw: 1
     - _BumpScale: 1
-    - _CloudDentisy: 0.1
+    - _CloudDentisy: 1
     - _CloudSize: 12000
     - _CondenseDensity: 0.001
     - _Cover: 0.63
@@ -93,7 +93,7 @@ Material:
     - _Detail: 1
     - _DetailMask: 0.1
     - _DetailNormalMapScale: 1
-    - _DetailTile: 0.32
+    - _DetailTile: 0.1
     - _DstBlend: 0
     - _GlossMapScale: 1
     - _Glossiness: 0.5
@@ -116,4 +116,4 @@ Material:
     - _Cutoff: {r: 0.44, g: 0.99, b: 0.99, a: 0.99}
     - _DetailCutoff: {r: 0.99, g: 0.99, b: 0, a: 0}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
-    - _WindDirection: {r: 0, g: 1, b: 200, a: 0}
+    - _WindDirection: {r: 1, g: 1, b: 200, a: 0}

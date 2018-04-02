@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
+[ImageEffectAllowedInSceneView]
 [ExecuteInEditMode,RequireComponent(typeof(Camera))]
     public class CloudVolumeRenderer : EffectBase {
     public Material mat;
@@ -14,7 +15,7 @@ using UnityEngine.Rendering;
     // The index of 4x4 pixels.
     private int frameIndex = 0;
 
-    private static int[,] offset = new int[16, 2];
+    private static int[,] offset = new int[16, 2]; 
 
     private void OnEnable() {
         SetupOffsets();

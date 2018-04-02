@@ -24,6 +24,16 @@ float _CloudDentisy;
 float _BeerLaw;
 half4 _WindDirection;
 
+float Remap(float original_value, float original_min, float original_max, float new_min, float new_max)
+{
+	return new_min + (((original_value - original_min) / (original_max - original_min)) * (new_max - new_min));
+}
+
+float RemapClamped(float original_value, float original_min, float original_max, float new_min, float new_max)
+{
+	return new_min + (saturate((original_value - original_min) / (original_max - original_min)) * (new_max - new_min));
+}
+
 float HenryGreenstein(float g, float cosTheta) {
 	float pif = 1.0;// (1.0 / (4.0 * 3.1415926f));
 	float numerator = 1 - g * g ;
@@ -36,50 +46,55 @@ float Energy(float d, float cosTheta) {
 }
 
 float LowresSample(float3 worldPos) {
-	float tempResult;
+
+	float heightPercent = saturate((worldPos.y - CENTER + THICKNESS / 2) / THICKNESS);
+	fixed4 tempResult;
 	half3 uvw = worldPos;
 	uvw.xz += _WindDirection.xy * _WindDirection.z * _Time.y;
+//	uvw.xz += _WindDirection.xy * heightPercent * 500;
 	uvw = uvw / _CloudSize;
-	tempResult = tex3Dlod(_VolumeTex, half4(uvw, 0)).r;
-	tempResult = saturate((tempResult - _Cutoff) / (1-_Cutoff));
-	float sampleResult = (tempResult.r);
-	
-	//If you don't want to bother a coverage tex, use this.
-	
-	float heightPercent = saturate((worldPos.y - CENTER + THICKNESS / 2) / THICKNESS);
+	tempResult = tex3Dlod(_VolumeTex, half4(uvw, 0)).rgba;
+	float low_freq_fBm = (tempResult.g * 0.625) + (tempResult.b * 0.25) + (tempResult.a * 0.125);
 
-	//Height signal
-	half3 heightSample = tex2Dlod(_HeightSignal, half4(0, heightPercent, 0, 0)).a;
+	// define the base cloud shape by dilating it with the low frequency fBm made of Worley noise.
+	float sampleResult = Remap(tempResult.r, -(1.0 - low_freq_fBm), 1.0, 0.0, 1.0);
+
+	//If you don't want to bother a coverage tex, use this.
+
+	float heightSample = tex2Dlod(_HeightSignal, half4(0, heightPercent, 0, 0)).a;
 	sampleResult *= heightSample;
-	//Coverage
-	half4 coverageSampleUV = half4(TRANSFORM_TEX((worldPos.xz / _CloudSize), _CoverageTex), 0, 0);	//we use LOD, to make sure the edge doesn't look werid.
+
+	half4 coverageSampleUV = half4(TRANSFORM_TEX((worldPos.xz / _CloudSize), _CoverageTex), 0, 0);
+	float coverage = tex2Dlod(_CoverageTex, coverageSampleUV).r;
+	//Anvil style.
+	//coverage = pow(coverage, RemapClamped(heightPercent, 0.7, 0.8, 1.0, lerp(1.0, 0.5, 0.5)));
+
+	//This doesn't work at all! 
+	//sampleResult = RemapClamped(sampleResult, 1 - coverage, 1.0, 0.0, 1.0);
 	
-	//only for demonstration. In real game, coverage should be driven by weather system.
-	//coverageSampleUV.xy += (_Time.y * 400 ) / _CloudSize;
-	half coverage = tex2Dlod(_CoverageTex, coverageSampleUV);
+	//Just use the old fashion way.
 	sampleResult *= coverage;
 
-//	sampleResult *= 1 + (saturate(heightPercent));
-	sampleResult *= _CloudDentisy;	
-
-	sampleResult = saturate(sampleResult - 0.001) * 1.001;
+	sampleResult = saturate(sampleResult);
 	return sampleResult;
 }
 
 float DetailErode(float3 worldPos, float lowresSample) {
-	float4 tempResult;
-	worldPos.xz += _WindDirection.xy * _WindDirection.w * _Time.y;
+	//return lowresSample;
+	float3 tempResult;
 	half3 uvw = worldPos / (_DetailTile * _CloudSize);
 	//tex2Dlod(_DetailNoiseTex, half4(uvw.x, 0));
-	tempResult = tex3Dlod(_DetailTex, half4(uvw, 0));
-	float sampleResult = (tempResult.r);
-	//	tempResult.g = tex3Dlod(_DetailTex, half4(uvw / 2, 0)).g;
-//	tempResult.b = tex3Dlod(_DetailTex, half4(uvw / 4, 0)).b;
+	tempResult = tex3Dlod(_DetailTex, half4(uvw, 0)).rgb;
+	// build High frequency Worley noise fBm
+	float sampleResult = (tempResult.r * 0.625) + (tempResult.g * 0.25) + (tempResult.b * 0.125);
 
-	//how much "edge" is this point?
-	//we define edge by _DetailMask. value below _DetailMask is an edge.
-	float edge = saturate(_DetailMask - lowresSample / _CloudDentisy) / _DetailMask;
-	return saturate(lowresSample - _DetailMask * edge * sampleResult * _CloudDentisy);
+	float heightPercent = saturate((worldPos.y - CENTER + THICKNESS / 2) / THICKNESS);
+	float high_freq_noise_modifier = lerp(sampleResult, 1.0 - sampleResult, saturate(heightPercent * 10.0));
+
+	float edge = saturate(_DetailMask - lowresSample ) / _DetailMask;
+	//return saturate(lowresSample - _DetailMask * edge * sampleResult );
+
+	return Remap(lowresSample, high_freq_noise_modifier * 0.2, 1.0, 0.0, 1.0);
 }
 
 float FullSample(float3 worldPos) {
@@ -94,6 +109,7 @@ half rand(half3 co)
 }
 
 float SampleEnergy(float3 worldPos, float3 viewDir) {
+	return 0.01;
 #define DETAIL_ENERGY_SAMPLE_COUNT 6
 	float totalSample = 0;
 	//return 0.001;
@@ -155,7 +171,7 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 			}
 			sampleResult = DetailErode(rayPos, sampleResult);
 			if (sampleResult > 0) {
-				float sampledAlpha = sampleResult * DETAIL_SAMPLE_STEP_SIZE;	//换算成alpha值
+				float sampledAlpha = sampleResult * DETAIL_SAMPLE_STEP_SIZE * _CloudDentisy;	//换算成alpha值
 				float sampledEnergy;				//能量在rayPos向eyePos的辐射率。
 				if (alpha > 0.3) {
 					sampledEnergy = SampleEnergyCheap(rayPos, dir);				//能量在rayPos向eyePos的辐射率。
