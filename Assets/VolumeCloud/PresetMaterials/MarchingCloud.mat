@@ -88,7 +88,7 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Floats:
     - _AtmosphereColorSaturateDistance: 100000
-    - _BeerLaw: 15
+    - _BeerLaw: 25
     - _BumpScale: 1
     - _CloudDentisy: 0.1
     - _CloudSize: 50000

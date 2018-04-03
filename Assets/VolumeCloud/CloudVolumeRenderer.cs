@@ -47,7 +47,7 @@ using UnityEngine.Rendering;
         EnsureArray(ref fullBuffer, 2);
         EnsureRenderTarget(ref fullBuffer[0], width, height, RenderTextureFormat.ARGBHalf, FilterMode.Bilinear);
         EnsureRenderTarget(ref fullBuffer[1], width, height, RenderTextureFormat.ARGBHalf, FilterMode.Bilinear);
-        EnsureRenderTarget(ref lowresBuffer, width /4 , height/4, RenderTextureFormat.ARGBHalf, FilterMode.Bilinear);
+        EnsureRenderTarget(ref lowresBuffer, width /4 , height/4, RenderTextureFormat.ARGBFloat, FilterMode.Bilinear);
 
         frameIndex = (frameIndex + 1)% 16;
         fullBufferIndex = (fullBufferIndex + 1) % 2;

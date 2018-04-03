@@ -48,7 +48,6 @@
 			sampler2D _CameraDepthTexture;
 			float4 _ProjectionExtents;
 			float3 _SkyColor;
-			float _AtmosphereColorSaturateDistance;
 			struct appdata
 			{
 				float4 vertex : POSITION;
@@ -73,7 +72,7 @@
 				return o;
 			}
 			
-			half4 frag (Interpolator i) : SV_Target
+			float4 frag (Interpolator i) : SV_Target
 			{
 				float3 vspos = float3(i.vsray, 1.0);
 				float4 worldPos = mul(unity_CameraToWorld,float4(vspos,1.0));
@@ -90,10 +89,9 @@
 				float depth;
 				float dentisy = GetDentisy(worldPos, viewDir, 100000, noiseSample,intensity,depth);	//Depth aware is not implemented nicely yet.
 				
-				/*RGBA: direct intensity, atmosphric blend, ambient, alpha*/
-				float atmosphericBlendFactor = saturate(pow(depth / _AtmosphereColorSaturateDistance, 0.2));
+				/*RGBA: direct intensity, depth(this is differenct from the slide), ambient, alpha*/
 
-				return half4(intensity, atmosphericBlendFactor, /*ambient haven't implemented yet */1, dentisy);
+				return float4(intensity, depth, /*ambient haven't implemented yet */1, dentisy);
 			}
 			ENDCG
 		}
@@ -116,6 +114,7 @@
 				sampler2D _CameraDepthTexture;
 				float4 _ProjectionExtents;
 				float4 _AtmosphereColor;
+				float _AtmosphereColorSaturateDistance;
 
 				float4 debug;
 
@@ -152,9 +151,9 @@
 					return prevSample;
 				}
 
-				half4 SampleCurrent(float2 uv) {
+				float4 SampleCurrent(float2 uv) {
 					uv = uv - (_Jitter - 2)* _MainTex_TexelSize.xy;
-					half4 currSample = tex2D(_LowresCloudTex, uv);
+					float4 currSample = tex2D(_LowresCloudTex, uv);
 					return currSample;
 				}
 
@@ -170,16 +169,18 @@
 				half4 frag(v2f i) : SV_Target
 				{
 					half outOfBound;
-					float3 vspos = float3(i.vsray, 1.0) * 2000;
-					half4 prevSample = SamplePrev(i.uv, vspos, outOfBound);
-					half4 currSample = SampleCurrent(i.uv);
-					
+					float4 currSample = SampleCurrent(i.uv);
+					float depth = currSample.g;
+					float atmosphericBlendFactor = saturate(pow(depth / _AtmosphereColorSaturateDistance, 0.2));
 					half4 result;
 					result.a = currSample.a;
 					result.rgb = currSample.r * _LightColor0.rgb;
-					result.rgb = lerp(result.rgb, _AtmosphereColor * currSample.a, currSample.g);
-					half correct = max(CurrentCorrect(i.uv, _Jitter),outOfBound);
-				//	correct = max(correct, 1 - prevSample.a);
+					result.rgb = lerp(result.rgb, _AtmosphereColor * currSample.a, atmosphericBlendFactor);
+
+					float3 vspos = float3(i.vsray, 1.0) * depth;
+					half4 prevSample = SamplePrev(i.uv, vspos, outOfBound);
+
+					half correct = max(CurrentCorrect(i.uv, _Jitter), outOfBound);
 					return lerp(prevSample, result, correct);
 				}
 				ENDCG

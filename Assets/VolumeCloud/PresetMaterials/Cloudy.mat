@@ -89,7 +89,7 @@ Material:
     m_Floats:
     - _AtmosphereBlendFactor: 0.0002
     - _AtmosphereColorSaturateDistance: 100000
-    - _BeerLaw: 15
+    - _BeerLaw: 25
     - _BumpScale: 1
     - _CloudDentisy: 0.1
     - _CloudSize: 50000
