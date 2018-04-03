@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -20,21 +21,22 @@ using UnityEngine.Rendering;
 
     private void OnEnable() {
         SetupOffsets();
-        ChangeResolution();
     }
-
     void SetupOffsets() {
-        int index = 0;
+        List<int> tempList = new List<int>();
+        for (int i = 0; i < 16; i++) {
+            tempList.Add(i);
+        }
+        var t = new System.Random(114514);
+        tempList = tempList.OrderBy(e => t.Next()).ToList();
+
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 4; j++) {
+                var index = tempList[i * 4 + j];
                 offset[index, 0] = i - 2;
-                offset[index++, 1] = j - 2;
+                offset[index, 1] = j - 2;
             }
         }
-    }
-
-    void ChangeResolution() {
-        
     }
 
     private void OnRenderImage(RenderTexture source, RenderTexture destination) {
@@ -45,7 +47,7 @@ using UnityEngine.Rendering;
         EnsureArray(ref fullBuffer, 2);
         EnsureRenderTarget(ref fullBuffer[0], width, height, RenderTextureFormat.ARGBHalf, FilterMode.Bilinear);
         EnsureRenderTarget(ref fullBuffer[1], width, height, RenderTextureFormat.ARGBHalf, FilterMode.Bilinear);
-        EnsureRenderTarget(ref lowresBuffer, width /4 , height/4, RenderTextureFormat.ARGBHalf, FilterMode.Point);
+        EnsureRenderTarget(ref lowresBuffer, width /4 , height/4, RenderTextureFormat.ARGBHalf, FilterMode.Bilinear);
 
         frameIndex = (frameIndex + 1)% 16;
         fullBufferIndex = (fullBufferIndex + 1) % 2;

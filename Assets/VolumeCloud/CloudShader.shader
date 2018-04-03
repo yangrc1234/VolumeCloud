@@ -3,25 +3,24 @@
 	Properties
 	{
 		_MainTex("MainTex",2D) = "white"{}
-		_CloudTex("CloudTex",2D) = "white"{}
 		_VolumeTex("Texture", 3D) = "white" {}
 		_DetailTex("Detail", 3D) = "white" {}
+		_CurlNoise("CurlNoise", 2D) = "white"{}
 		_CoverageTex("CoverageTex", 2D) = "white" {}
-		_Cutoff("Cutoff", float) = 0.5
 		_CloudDentisy("CloudDentisy",float) = 0.02
 		_CloudSize("CloudSize", float) = 16000
-		_DetailTile("DetailTile", float) = 16000
-		_DetailMask("DetailMask", float) = 0.1
-		_Detail("Detail", float) = 0.5
+		_DetailTile("DetailTile", float) = 0.10
+		_CurlTile("CurlTile", float) = 0.10
+		_CurlSize("CurlSize", float) = 10
 		_HeightSignal("HeightSignal",2D) = "white"
-		_Transcluency("Transcluency",float) = 2048
-		_Occlude("Occlude",float) = 128
 		_BeerLaw("BeerLaw",float) = 1
 		_WindDirection("WindDirection",vector) = (1,1,0,0)
 		_BlueNoise("BlueNoise",2D) = "gray"
-		_SilverIntensity("SilverIntensity",float) = 0.2
-		_SilverSpread("SilverSpread",float) = 0.5
-			debug("Debug",vector) = (1,1,1,1)
+		_SilverIntensity("SilverIntensity",float) = .8
+		_SilverSpread("SilverSpread",float) = .75
+		_AmbientColor("AmbientColor", vector) = (1,1,1,1)
+		_AtmosphereColor ("AtmosphereColor" , vector) = (1,1,1,1)
+		_AtmosphereColorSaturateDistance("AtmosphereColorSaturateDistance", float) = 80000
 	}
 		SubShader
 		{
@@ -48,6 +47,8 @@
 			sampler2D _BlueNoise;
 			sampler2D _CameraDepthTexture;
 			float4 _ProjectionExtents;
+			float3 _SkyColor;
+			float _AtmosphereColorSaturateDistance;
 			struct appdata
 			{
 				float4 vertex : POSITION;
@@ -74,7 +75,7 @@
 			
 			half4 frag (Interpolator i) : SV_Target
 			{
-				float3 vspos = float3(i.vsray, 1.0) * 2000;
+				float3 vspos = float3(i.vsray, 1.0);
 				float4 worldPos = mul(unity_CameraToWorld,float4(vspos,1.0));
 				worldPos /= worldPos.w;
 				float depthValue = LinearEyeDepth(tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(i.screenPos)).r); 
@@ -87,16 +88,17 @@
 				float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
 				float intensity;
 				float depth;
-				float dentisy = GetDentisy(worldPos, viewDir, depthValue, noiseSample,intensity,depth);
-				half3 col = (intensity * _LightColor0);
-				float3 shColor = UNITY_LIGHTMODEL_AMBIENT.xyz;
-				col += shColor * dentisy;
-				return half4(col, dentisy);
+				float dentisy = GetDentisy(worldPos, viewDir, 100000, noiseSample,intensity,depth);	//Depth aware is not implemented nicely yet.
+				
+				/*RGBA: direct intensity, atmosphric blend, ambient, alpha*/
+				float atmosphericBlendFactor = saturate(pow(depth / _AtmosphereColorSaturateDistance, 0.2));
+
+				return half4(intensity, atmosphericBlendFactor, /*ambient haven't implemented yet */1, dentisy);
 			}
 			ENDCG
 		}
 
-			//Blend low-res buffer with previmage to make final image.
+			//Blend low-res buffer with previmage to make final cloud image.
 			Pass{
 				Cull Off ZWrite Off ZTest Always
 				CGPROGRAM
@@ -104,6 +106,7 @@
 				#pragma fragment frag
 
 				#include "UnityCG.cginc"
+				#include "Lighting.cginc"
 
 				sampler2D _MainTex;	//this is previous full-resolution tex.
 				sampler2D _LowresCloudTex;	//current low-resolution tex.
@@ -112,6 +115,7 @@
 				float4x4 _PrevVP;	//View projection matrix of last frame.
 				sampler2D _CameraDepthTexture;
 				float4 _ProjectionExtents;
+				float4 _AtmosphereColor;
 
 				float4 debug;
 
@@ -155,11 +159,11 @@
 				}
 
 				half CurrentCorrect(float2 uv,float2 jitter) {
-				//	return 0;
 					float2 currSampleValid = 0;
 					float2 texelPos = uv * _MainTex_TexelSize.zw;
 					half2 currSampleTexel = texelPos - jitter;
 					currSampleValid = step(frac((currSampleTexel) / 4), .2);
+					float2 fract = frac(currSampleTexel / 4);
 					return currSampleValid.x * currSampleValid.y;
 				}
 
@@ -169,15 +173,19 @@
 					float3 vspos = float3(i.vsray, 1.0) * 2000;
 					half4 prevSample = SamplePrev(i.uv, vspos, outOfBound);
 					half4 currSample = SampleCurrent(i.uv);
-					if (debug.w > 0.5)
-						return currSample;
+					
+					half4 result;
+					result.a = currSample.a;
+					result.rgb = currSample.r * _LightColor0.rgb;
+					result.rgb = lerp(result.rgb, _AtmosphereColor * currSample.a, currSample.g);
 					half correct = max(CurrentCorrect(i.uv, _Jitter),outOfBound);
-					return lerp(prevSample, currSample, correct);
+				//	correct = max(correct, 1 - prevSample.a);
+					return lerp(prevSample, result, correct);
 				}
 				ENDCG
 		}
 
-			//Blend low-res buffer with previmage to make final image.
+			//Blend final cloud image with final image.
 			Pass{
 					Cull Off ZWrite Off ZTest Always
 					CGPROGRAM
@@ -188,7 +196,7 @@
 
 				sampler2D _MainTex;	//Final image without cloud.
 				sampler2D _CloudTex;	//The full resolution cloud tex we generated.
-			//	sampler2D _CameraDepthTexture;
+				sampler2D _CameraDepthTexture;
 
 				struct appdata
 				{
@@ -199,6 +207,7 @@
 				struct v2f
 				{
 					float2 uv : TEXCOORD0;
+					float4 screenPos : TEXCOORD1;
 					float4 vertex : SV_POSITION;
 				};
 
@@ -207,6 +216,7 @@
 					v2f o;
 					o.vertex = UnityObjectToClipPos(v.vertex);
 					o.uv = v.uv;
+					o.screenPos = ComputeScreenPos(o.vertex);
 					return o;
 				}
 
@@ -214,7 +224,12 @@
 				{
 					half4 mcol = tex2D(_MainTex,i.uv);
 					half4 col = tex2D(_CloudTex, i.uv);
-					return half4(mcol.rgb * (1 - col.a) + col.rgb,1);
+					float depthValue = LinearEyeDepth(tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(i.screenPos)).r);
+					//only if depthValue is nearly at the far clip plane, we use cloud.
+					if (depthValue > _ProjectionParams.z - 100) {
+						return half4(mcol.rgb * (1 - col.a) + col.rgb, 1);
+					}
+					return mcol;
 				}
 					ENDCG
 				}

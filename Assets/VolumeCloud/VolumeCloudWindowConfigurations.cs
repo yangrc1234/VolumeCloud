@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class VolumeCloudWindowConfigurations : ScriptableObject {
-    public CustomTexGenerator testGenerator;
+    public CurlNoiseGenerator testGenerator;
 
     public First3DTexGenerator first3DTexGenerator;
     public string first3DTexSaveName = "First3DTex";

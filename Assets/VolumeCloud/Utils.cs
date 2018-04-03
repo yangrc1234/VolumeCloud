@@ -20,8 +20,8 @@ public class Utils {
         return result;
     }
 
-    public static Texture2D GetPreviewTex(ITextureGenerator texGen, int textureResolution) {
-        Texture2D result = new Texture2D(textureResolution, textureResolution, TextureFormat.RGB24, true);
+    public static Texture2D GetPreviewTex(ITextureGenerator texGen, int textureResolution, TextureFormat format = TextureFormat.RGBA32) {
+        Texture2D result = new Texture2D(textureResolution, textureResolution, format, true);
         Color[] colors = new Color[textureResolution * textureResolution];
         for (int x = 0; x < textureResolution; x++) {
             for (int y = 0; y < textureResolution; y++) {

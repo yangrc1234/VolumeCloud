@@ -53,7 +53,7 @@ public class VolumeCloudWindowEditor : EditorWindow {
             {   //Config area.
                 EditorGUILayout.PropertyField(configSO.FindProperty("testGenerator"), true);
                 if (GUILayout.Button("Save tex")) {
-                    var texture = Utils.GetTex(new NoiseTextureAdapter(config.testGenerator), 128, TextureFormat.RGB24);
+                    var texture = Utils.GetTex(config.testGenerator, 128, TextureFormat.RGB24);
                     AssetDatabase.CreateAsset(texture, "Assets/VolumeCloud/" + "TestTex" + ".asset");
                     AssetDatabase.SaveAssets();
                 }
@@ -63,7 +63,11 @@ public class VolumeCloudWindowEditor : EditorWindow {
                 EditorGUILayout.BeginVertical(GUILayout.Width(256.0f)); //Preview Area
                 {
                     if (GUILayout.Button("Preview")) {
-                        testTexPreview = Utils.GetPreviewTex(new NoiseTextureAdapter(config.testGenerator), 128);
+                        testTexPreview = Utils.GetPreviewTex(config.testGenerator, 128, TextureFormat.RGFloat);
+                    }
+                    if (GUILayout.Button("Save preview")) {
+                        AssetDatabase.CreateAsset(testTexPreview, "Assets/VolumeCloud/" + "curlNoise" + ".asset");
+                        AssetDatabase.SaveAssets();
                     }
                     if (testTexPreview != null) {
                         GUI.DrawTexture(EditorGUILayout.GetControlRect(false, GUILayout.Width(256.0f),GUILayout.Height(256.0f)), testTexPreview);

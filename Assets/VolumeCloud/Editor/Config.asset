@@ -12,11 +12,12 @@ MonoBehaviour:
   m_Name: Config
   m_EditorClassIdentifier: 
   testGenerator:
-    channel1WorleyPercent: 0.5
-    channel1WorleyPeriod: 32
-    channel1PerlinPeriod: 32
-    worleyOcataves: 4
-    perlinOctaves: 4
+    perlinNoise: {fileID: 2800000, guid: b04cd8b516e8e0e4e857832705e735bd, type: 3}
+    brightness: 20
+    scale: 1
+    perlin:
+      period: 8
+      octaves: 4
   first3DTexGenerator:
     texResolution: 128
     worleyOcataves: 3
