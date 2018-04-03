@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 49040651}
-  m_IndirectSpecularColor: {r: 0.16503547, g: 0.19363478, b: 0.22043101, a: 1}
+  m_IndirectSpecularColor: {r: 0.18276936, g: 0.2284762, b: 0.30704385, a: 1}
 --- !u!157 &3
 LightmapSettings:
   m_ObjectHideFlags: 0
@@ -170,13 +170,13 @@ Transform:
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 49040650}
-  m_LocalRotation: {x: -0.25545463, y: 0.3701403, z: 0.3881376, w: -0.80441797}
+  m_LocalRotation: {x: 0.028807355, y: -0.7897104, z: 0.3838356, w: 0.4777005}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 1
-  m_LocalEulerAnglesHint: {x: 7.103, y: -773.124, z: -55.070004}
+  m_LocalEulerAnglesHint: {x: 39.328003, y: -1548.774, z: 384.536}
 --- !u!1 &670099765
 GameObject:
   m_ObjectHideFlags: 0
@@ -255,7 +255,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 4294967295
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!154 &703300100
 TerrainCollider:
   m_ObjectHideFlags: 0
@@ -605,13 +605,13 @@ Transform:
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 1748146228}
-  m_LocalRotation: {x: -0, y: -0.9683446, z: -0, w: -0.249617}
+  m_LocalRotation: {x: -0.11004319, y: 0.65784276, z: 0.07816559, w: 0.74096125}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 0
-  m_LocalEulerAnglesHint: {x: 0, y: -208.90999, z: 0}
+  m_LocalEulerAnglesHint: {x: -15.4210005, y: 83.43201, z: -1.7210001}
 --- !u!114 &1748146233
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -798,7 +798,7 @@ Transform:
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 1869124148}
   m_LocalRotation: {x: 0.00035527264, y: 0.0002653892, z: -0.001261504, w: 0.9999991}
-  m_LocalPosition: {x: 246.8, y: 6000, z: 296.7}
+  m_LocalPosition: {x: 246.8, y: 1893.8, z: 296.7}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}

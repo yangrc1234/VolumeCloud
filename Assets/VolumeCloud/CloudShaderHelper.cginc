@@ -1,8 +1,8 @@
 #include "UnityCG.cginc"
-#define MIN_SAMPLE_COUNT 54
+#define MIN_SAMPLE_COUNT 56
 #define MAX_SAMPLE_COUNT 96
-#define CHEAP_SAMPLE_STEP_SIZE (THICKNESS * 6 / MAX_SAMPLE_COUNT)
-#define DETAIL_SAMPLE_STEP_SIZE (CHEAP_SAMPLE_STEP_SIZE / 3)
+#define CHEAP_SAMPLE_STEP_SIZE (THICKNESS * 5 / MAX_SAMPLE_COUNT)
+#define DETAIL_SAMPLE_STEP_SIZE (CHEAP_SAMPLE_STEP_SIZE / 2)
 
 #define THICKNESS 6500
 #define CENTER 4750
@@ -68,15 +68,15 @@ float BeerLaw(float d, float cosTheta) {
 float Inscatter(float3 worldPos,float dl, float cosTheta) {
 	float heightPercent = saturate((worldPos.y - CENTER + THICKNESS / 2) / THICKNESS);
 	float lodded_density = saturate(FullSample(worldPos, 1));
-	float depth_probability = 0.05 + pow(saturate(lodded_density), RemapClamped(heightPercent, 0.3, 0.85, 0.5, 2.0));
-	depth_probability = lerp(depth_probability, 1.0, saturate(1 - dl));		//I think the original one in ppt is wrong.(or they use dl as "brigtness" rather than "occlusion"
+	float depth_probability = 0.05 + pow(lodded_density, RemapClamped(heightPercent, 0.3, 0.85, 0.5, 2.0));
+	depth_probability = lerp(depth_probability, 1.0, saturate(1 - 50 * dl));		//I think the original one in ppt is wrong.(or they use dl as "brigtness" rather than "occlusion"
 	float vertical_probability = pow(max(0, Remap(heightPercent, 0.07, 0.14, 0.1, 1.0)), 0.8);
-	return saturate(depth_probability * vertical_probability);
+	return saturate(depth_probability * 1);
 }
 
 float Energy(float3 worldPos, float d, float cosTheta) {
 	float hgImproved = max(HenryGreenstein(0.05, cosTheta), _SilverIntensity * HenryGreenstein(0.99 - _SilverSpread, cosTheta));
-	return hgImproved * BeerLaw(d, cosTheta) * 3.0;// *Inscatter(worldPos, d, cosTheta);	// waiting for fix.
+	return hgImproved * BeerLaw(d, cosTheta) * 3.0 * Inscatter(worldPos, d, cosTheta);	// waiting for fix.
 }
 
 float LowresSample(float3 worldPos,int lod, bool cheap) {
@@ -85,7 +85,7 @@ float LowresSample(float3 worldPos,int lod, bool cheap) {
 	fixed4 tempResult;
 	float3 unwindWorldPos = worldPos;
 	worldPos = ApplyWind(worldPos);
-	tempResult = tex3Dlod(_VolumeTex, half4(worldPos / _CloudSize, lod)).rgba;
+	tempResult = tex3Dlod(_VolumeTex, half4(worldPos / _CloudSize , lod)).rgba;
 	float low_freq_fBm = (tempResult.g * 0.625) + (tempResult.b * 0.25) + (tempResult.a * 0.125);
 
 	// define the base cloud shape by dilating it with the low frequency fBm made of Worley noise.
@@ -100,11 +100,11 @@ float LowresSample(float3 worldPos,int lod, bool cheap) {
 	//coverage = pow(coverage, RemapClamped(heightPercent, 0.7, 0.8, 1.0, lerp(1.0, 0.5, 0.5)));
 
 	//This doesn't work at all! 
-	//sampleResult = RemapClamped(coverage, sampleResult, 1.0, 0.0, 1.0);
-	
+	sampleResult = RemapClamped(sampleResult, 1 - coverage, 1.0, 0.0, 1.0);
+	 
 	//Just use the old fashion way.
 	sampleResult *= coverage;
-
+	
 	if (!cheap) {
 		float2 curl_noise = tex2Dlod(_CurlNoise, float4(worldPos.xz / (_CloudSize * _CurlTile), 0.0, 1.0)).rg;
 		worldPos.xz += curl_noise.rg * (1.0 - heightPercent) * _CloudSize * _CurlSize;
@@ -117,9 +117,8 @@ float LowresSample(float3 worldPos,int lod, bool cheap) {
 
 		sampleResult = Remap(sampleResult, high_freq_noise_modifier * 0.2, 1.0, 0.0, 1.0);
 	} 
-
-	sampleResult = saturate(sampleResult);
-	return sampleResult;
+	
+	return saturate(sampleResult);
 }
 
 float FullSample(float3 worldPos, int lod) {
@@ -159,12 +158,12 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 	*/
 
 #define SHRINKSIZE 100
-	float earthRadius = 650000;
+	float earthRadius = 6500000;
 	float3 earthCenter = float3(0, -earthRadius, 0);
 	float3 ominusc = startPos - earthCenter;
 	float toAtmosphereDistance;
 	if (startPos.y > CENTER - THICKNESS / 2) {
-		toAtmosphereDistance = 0.0;
+		toAtmosphereDistance = 1.0;
 	}
 	else {
 		toAtmosphereDistance = -dot(dir, ominusc) + pow(pow(dot(dir, ominusc), 2) - dot(ominusc, ominusc) + pow(CENTER - THICKNESS / 2 + earthRadius, 2), 0.5);
@@ -195,22 +194,21 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 	float alpha = 0;
 	intensity = 0;
 	float raymarchDistance = raymarchOffset * (DETAIL_SAMPLE_STEP_SIZE + CHEAP_SAMPLE_STEP_SIZE);
-	float sampleStep = CHEAP_SAMPLE_STEP_SIZE;
 	bool detailedSample = false;
 	int missedStepCount = 0;
 
 	[loop]
-	for (int j = 0; j < sample_count; j++) {
+	for (int j = 0; j < MAX_SAMPLE_COUNT; j++) {
 		float3 rayPos = startPos + dir * raymarchDistance;
 		if (!detailedSample) {
 			float sampleResult = LowresSample(rayPos, 0, true);
 			if (sampleResult > 0) {
 				detailedSample = true;
-				raymarchDistance -= sampleStep;
-				sampleStep = DETAIL_SAMPLE_STEP_SIZE;
+				raymarchDistance -= DETAIL_SAMPLE_STEP_SIZE;
 				missedStepCount = 0;
 				continue;
 			}
+			raymarchDistance += CHEAP_SAMPLE_STEP_SIZE;
 		}
 		else {
 			float sampleResult = LowresSample(rayPos, 0, false);
@@ -218,8 +216,6 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 				missedStepCount++;
 				if (missedStepCount > 10) {
 					detailedSample = false;
-					sampleStep = CHEAP_SAMPLE_STEP_SIZE;
-					continue;
 				}
 			}
 			if (sampleResult > 0) {
@@ -233,14 +229,11 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 				}
 				alpha += (1 - alpha) * sampledAlpha;
 				if (alpha > 1) {
-					intensity;
 					return 1;
 				}
 			}
+			raymarchDistance += DETAIL_SAMPLE_STEP_SIZE;
 		}
-		raymarchDistance += sampleStep;
-		if (raymarchDistance > maxSampleDistance)
-			break;
 	}
 	return alpha;
 }

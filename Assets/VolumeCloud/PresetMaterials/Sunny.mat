@@ -94,7 +94,7 @@ Material:
     - _CloudSize: 50000
     - _CondenseDensity: 0.001
     - _Cover: 0.63
-    - _CurlSize: 1
+    - _CurlSize: 0.5
     - _CurlTile: 5
     - _Cutoff: 0.1
     - _Detail: 1

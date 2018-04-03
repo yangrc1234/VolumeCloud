@@ -87,7 +87,7 @@
 				float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
 				float intensity;
 				float depth;
-				float dentisy = GetDentisy(worldPos, viewDir, 100000, noiseSample,intensity,depth);	//Depth aware is not implemented nicely yet.
+				float dentisy = GetDentisy(worldPos, viewDir, 100000, noiseSample,intensity,depth);
 				
 				/*RGBA: direct intensity, depth(this is differenct from the slide), ambient, alpha*/
 

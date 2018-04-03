@@ -32,7 +32,7 @@ Material:
         m_Offset: {x: 0, y: 0}
     - _CoverageTex:
         m_Texture: {fileID: 2800000, guid: c73be893af46a1e4db152d42aacae768, type: 3}
-        m_Scale: {x: 1, y: 1}
+        m_Scale: {x: 0.5, y: 0.5}
         m_Offset: {x: 0, y: 0}
     - _CurlNoise:
         m_Texture: {fileID: 2800000, guid: 864afbdb4b1b36c42be5cac8f2556237, type: 2}
@@ -63,7 +63,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _HeightSignal:
-        m_Texture: {fileID: 2800000, guid: e989ea5237b5c2248985eda05670a4c4, type: 3}
+        m_Texture: {fileID: 2800000, guid: 54dede9c94836a34c99ff6f572bc5fb0, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
@@ -95,7 +95,7 @@ Material:
     - _CloudSize: 50000
     - _CondenseDensity: 0.001
     - _Cover: 0.63
-    - _CurlSize: 1
+    - _CurlSize: 0.5
     - _CurlTile: 5
     - _Cutoff: 0.1
     - _Detail: 1
