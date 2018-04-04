@@ -9,17 +9,18 @@
 		_CoverageTex("CoverageTex", 2D) = "white" {}
 		_CloudDentisy("CloudDentisy",float) = 0.02
 		_CloudSize("CloudSize", float) = 16000
+		_BaseShapeTile("BaseShapeTile", float) = 2.0
+		_DetailSize("DetailSize", float) = 0.2
 		_DetailTile("DetailTile", float) = 0.10
 		_CurlTile("CurlTile", float) = 0.10
 		_CurlSize("CurlSize", float) = 10
-		_HeightSignal("HeightSignal",2D) = "white"
 		_BeerLaw("BeerLaw",float) = 1
-		_WindDirection("WindDirection",vector) = (1,1,0,0)
-		_BlueNoise("BlueNoise",2D) = "gray"
+		_WindDirection("WindDirection",Vector) = (1,1,0,0)
+		_BlueNoise("BlueNoise",2D) = "gray" {}
+		_AmbientColor("AmbientColor", Color) = (1,1,1,1)
+		_AtmosphereColor("AtmosphereColor" , Color) = (1,1,1,1)
 		_SilverIntensity("SilverIntensity",float) = .8
 		_SilverSpread("SilverSpread",float) = .75
-		_AmbientColor("AmbientColor", vector) = (1,1,1,1)
-		_AtmosphereColor ("AtmosphereColor" , vector) = (1,1,1,1)
 		_AtmosphereColorSaturateDistance("AtmosphereColorSaturateDistance", float) = 80000
 	}
 		SubShader
@@ -113,8 +114,9 @@
 				float4x4 _PrevVP;	//View projection matrix of last frame.
 				sampler2D _CameraDepthTexture;
 				float4 _ProjectionExtents;
-				float4 _AtmosphereColor;
+				half3 _AtmosphereColor;
 				float _AtmosphereColorSaturateDistance;
+				half3 _AmbientColor;
 
 				float4 debug;
 
@@ -174,8 +176,8 @@
 					float atmosphericBlendFactor = saturate(pow(depth / _AtmosphereColorSaturateDistance, 0.2));
 					half4 result;
 					result.a = currSample.a;
-					result.rgb = currSample.r * _LightColor0.rgb;
-					result.rgb = lerp(result.rgb, _AtmosphereColor * currSample.a, atmosphericBlendFactor);
+					result.rgb = currSample.r * _LightColor0.rgb + currSample.b *_AmbientColor * currSample.a;
+					result.rgb = lerp(result.rgb, _AtmosphereColor * currSample.a, saturate(atmosphericBlendFactor));
 
 					float3 vspos = float3(i.vsray, 1.0) * depth;
 					half4 prevSample = SamplePrev(i.uv, vspos, outOfBound);

@@ -32,8 +32,8 @@ Material:
         m_Offset: {x: 0, y: 0}
     - _CoverageTex:
         m_Texture: {fileID: 2800000, guid: c73be893af46a1e4db152d42aacae768, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 1, y: 0.38}
+        m_Scale: {x: 0.5, y: 0.5}
+        m_Offset: {x: 2.1, y: 0.38}
     - _CurlNoise:
         m_Texture: {fileID: 2800000, guid: 864afbdb4b1b36c42be5cac8f2556237, type: 2}
         m_Scale: {x: 1, y: 1}
@@ -88,19 +88,21 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Floats:
     - _AtmosphereColorSaturateDistance: 100000
-    - _BeerLaw: 25
+    - _BaseShapeTile: 7.5
+    - _BeerLaw: 10
     - _BumpScale: 1
-    - _CloudDentisy: 0.1
+    - _CloudDentisy: 0.05
     - _CloudSize: 50000
     - _CondenseDensity: 0.001
     - _Cover: 0.63
-    - _CurlSize: 0.5
+    - _CurlSize: 1
     - _CurlTile: 5
     - _Cutoff: 0.1
     - _Detail: 1
     - _DetailMask: 0.1
     - _DetailNormalMapScale: 1
-    - _DetailTile: 0.1
+    - _DetailSize: 0.2
+    - _DetailTile: 15
     - _DstBlend: 0
     - _GlossMapScale: 1
     - _Glossiness: 0.5
@@ -121,10 +123,10 @@ Material:
     - _UVSec: 0
     - _ZWrite: 1
     m_Colors:
-    - _AmbientColor: {r: 1, g: 1, b: 1, a: 1}
+    - _AmbientColor: {r: 0.3557526, g: 0.37658092, b: 0.51470584, a: 1}
     - _AtmosphereColor: {r: 0.2, g: 0.3, b: 0.45, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _Cutoff: {r: 0.44, g: 0.99, b: 0.99, a: 0.99}
     - _DetailCutoff: {r: 0.99, g: 0.99, b: 0, a: 0}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
-    - _WindDirection: {r: 1, g: 1, b: 200, a: 0}
+    - _WindDirection: {r: 1, g: 1, b: 80, a: 0}
