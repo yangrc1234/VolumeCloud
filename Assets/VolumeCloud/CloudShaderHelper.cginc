@@ -82,7 +82,7 @@ float Inscatter(float3 worldPos,float dl, float cosTheta) {
 
 float Energy(float3 worldPos, float d, float cosTheta) {
 	float hgImproved = max(HenryGreenstein(0.05, cosTheta), _SilverIntensity * HenryGreenstein(0.99 - _SilverSpread, cosTheta));
-	return hgImproved * BeerLaw(d, cosTheta) * 3.0 * Inscatter(worldPos, d, cosTheta);	// waiting for fix.
+	return hgImproved * BeerLaw(d, cosTheta) *3.0 * Inscatter(worldPos, d, cosTheta);	// waiting for fix.
 }
 
 float LowresSample(float3 worldPos,int lod, bool cheap) {
@@ -144,11 +144,11 @@ float SampleEnergy(float3 worldPos, float3 viewDir) {
 		half3 direction = _WorldSpaceLightPos0 * 2 + normalize(rand3);
 		direction = normalize(direction);
 		float3 samplePoint = worldPos 
-			+ (direction * i / DETAIL_ENERGY_SAMPLE_COUNT) * 512;
+			+ (direction * i / DETAIL_ENERGY_SAMPLE_COUNT) * 1024;
 		totalSample += FullSample(samplePoint, mipmapOffset);
 		mipmapOffset += 0.5;
 	}
-	float energy = Energy(worldPos ,totalSample / DETAIL_ENERGY_SAMPLE_COUNT, dot(viewDir, _WorldSpaceLightPos0));
+	float energy = Energy(worldPos ,totalSample / DETAIL_ENERGY_SAMPLE_COUNT * _CloudDentisy, dot(viewDir, _WorldSpaceLightPos0));
 	return energy;
 }
 
@@ -181,7 +181,7 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 	float3 edge2 = float3(startPos.x, startPos.y + earthRadius, startPos.z);	//edge2 is from earth center to startPos.
 	float sinTheta = dot(normalize(edge1), normalize(edge2));				//these edges form exactly the same angle with the angle from (0,1,0) to corrected dir
 	dir = normalize(lerp(dir, float3(0,4,0), sinTheta));		//step 2, this is just a approximation, i'm poor at math, if u have better idea tell me plz.
-	float sample_step = lerp(6, 1, saturate(min(dir.y, .15) / .15)) * 100;
+	float sample_step = lerp(6, 1, saturate(min(dir.y, .075) / .075)) * 100;
 	
 	float distanceToCenter = length(startPos.xz);
 	float fakeHeightOffset = earthRadius - pow(earthRadius * earthRadius - 4 * distanceToCenter, 0.5);

@@ -90,9 +90,9 @@ Material:
     - _AtmosphereBlendFactor: 0.0002
     - _AtmosphereColorSaturateDistance: 100000
     - _BaseShapeTile: 7.5
-    - _BeerLaw: 10
+    - _BeerLaw: 200
     - _BumpScale: 1
-    - _CloudDentisy: 0.05
+    - _CloudDentisy: 0.1
     - _CloudSize: 50000
     - _CondenseDensity: 0.001
     - _Cover: 0.63
