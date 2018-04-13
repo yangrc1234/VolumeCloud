@@ -122,6 +122,7 @@ Material:
     - _SrcBlend: 1
     - _Transcluency: 2048
     - _UVSec: 0
+    - _WeathermapSize: 50000
     - _ZWrite: 1
     m_Colors:
     - _AmbientColor: {r: 0.3557526, g: 0.37658092, b: 0.51470584, a: 1}
@@ -130,4 +131,4 @@ Material:
     - _Cutoff: {r: 0.44, g: 0.99, b: 0.99, a: 0.99}
     - _DetailCutoff: {r: 0.99, g: 0.99, b: 0, a: 0}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
-    - _WindDirection: {r: 1, g: 1, b: 80, a: 0}
+    - _WindDirection: {r: 1, g: 1, b: 20, a: 0}

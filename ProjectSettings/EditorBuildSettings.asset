@@ -4,4 +4,10 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/ExampleScene/LightingTutorialOptimal.unity
+    guid: 3d7aa4b374415674dbb96d2758dff5fd
+  - enabled: 0
+    path: Assets/VolumeCloud/scene.unity
+    guid: e4a8c6ec9e196d241854a4ff221a28fd
