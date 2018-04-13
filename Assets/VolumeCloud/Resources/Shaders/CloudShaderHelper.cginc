@@ -39,7 +39,7 @@ float RemapClamped(float original_value, float original_min, float original_max,
 }
 
 float SampleHeight(float heightPercent,float cloudType) {
-	float stratos = RemapClamped(heightPercent, 0.0, .1, 0.0, 1.0) * RemapClamped(heightPercent, .2, .3, 1.0, 0.0);
+	float stratos = RemapClamped(heightPercent, 0.0, .1, 0.0, 1.0) * RemapClamped(heightPercent, .15, .3, 1.0, 0.0);
 	float cumulus = RemapClamped(heightPercent, 0.0, .15, 0.0, 1.0) * RemapClamped(heightPercent, .6, .9, 1.0, 0.0);
 	return lerp(stratos, cumulus, cloudType);
 }
@@ -166,7 +166,7 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 	*  3. moving raypos up to where cloud begin.
 	*/
 
-	float earthRadius = 6400000;		//Earth is scale down by 10. (I think this looks better.)
+	float earthRadius = 6400000;	
 	float3 earthCenter = float3(0, -earthRadius, 0);
 	float3 ominusc = startPos - earthCenter;
 	float toAtmosphereDistance;
@@ -181,15 +181,13 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 	startPos += dir * toAtmosphereDistance ;		//step 1
 
 	int sample_count = lerp(MAX_SAMPLE_COUNT, MIN_SAMPLE_COUNT, dir.y);	//dir.y ==0 means horizontal, use maximum sample count
-	
-	//When near horizon, we enlarge the "cheap step multiplier"
-	float largeSampleStepSize = 2 / (saturate(dir.y + 0.5));
-	
+		
 	float3 edge1 = float3(startPos.x, 0, startPos.z);						//edge1 is a vector from (0,0,0) to startPos but y-component is zero.
 	float3 edge2 = float3(startPos.x, startPos.y + earthRadius, startPos.z);	//edge2 is from earth center to startPos.
 	float sinTheta = dot(normalize(edge1), normalize(edge2));				//these edges form exactly the same angle with the angle from (0,1,0) to corrected dir
 	dir = normalize(lerp(dir, float3(0,4,0), sinTheta));		//step 2, this is just a approximation, i'm poor at math, if u have better idea tell me plz.
-	float sample_step = 50;
+	
+	float sample_step = 75;
 
 	if (startPos.y < -5000) {	//Clip all things below horizon.
 		intensity = 0;

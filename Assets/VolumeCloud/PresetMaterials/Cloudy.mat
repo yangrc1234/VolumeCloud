@@ -89,7 +89,7 @@ Material:
     m_Floats:
     - _AtmosphereBlendFactor: 0.0002
     - _AtmosphereColorSaturateDistance: 100000
-    - _BaseShapeTile: 15
+    - _BaseShapeTile: 2.5
     - _BeerLaw: 200
     - _BumpScale: 1
     - _CloudDentisy: 0.1
@@ -104,7 +104,7 @@ Material:
     - _DetailMask: 0.1
     - _DetailNormalMapScale: 1
     - _DetailSize: 0.2
-    - _DetailTile: 60
+    - _DetailTile: 25
     - _DstBlend: 0
     - _GlossMapScale: 1
     - _Glossiness: 0.5
