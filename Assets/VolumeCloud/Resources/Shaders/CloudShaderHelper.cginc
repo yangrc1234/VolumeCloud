@@ -2,8 +2,8 @@
 #define MIN_SAMPLE_COUNT 64
 #define MAX_SAMPLE_COUNT 128
 
-#define THICKNESS 2500
-#define CENTER 2750
+#define THICKNESS 6500
+#define CENTER 4750
 sampler3D _VolumeTex;
 float _BaseShapeTile;
 sampler3D _DetailTex;
@@ -38,10 +38,26 @@ float RemapClamped(float original_value, float original_min, float original_max,
 	return new_min + (saturate((original_value - original_min) / (original_max - original_min)) * (new_max - new_min));
 }
 
+float4 LerpGradient(float cloudType)
+{
+	float4 cloudGradient1 = float4(0, 0.07, 0.08, 0.15);
+	float4 cloudGradient2 = float4(0, 0.2, 0.42, 0.6);
+	float4 cloudGradient3 = float4(0, 0.08, 0.75, 1);
+
+	float a = 1.0f - saturate(cloudType / 0.5f);
+	float b = 1.0f - abs(cloudType - 0.5f) * 2.0f;
+	float c = saturate(cloudType - 0.5f) * 2.0f;
+
+	return cloudGradient1 * a + cloudGradient2 * b + cloudGradient3 * c;
+}
+
+float CalculateGradient(float a, float4 gradient)
+{
+	return smoothstep(gradient.x, gradient.y, a) - smoothstep(gradient.z, gradient.w, a); 
+}
+
 float SampleHeight(float heightPercent,float cloudType) {
-	float stratos = RemapClamped(heightPercent, 0.0, .1, 0.0, 1.0) * RemapClamped(heightPercent, .15, .3, 1.0, 0.0);
-	float cumulus = RemapClamped(heightPercent, 0.0, .15, 0.0, 1.0) * RemapClamped(heightPercent, .6, .9, 1.0, 0.0);
-	return lerp(stratos, cumulus, cloudType);
+	return CalculateGradient(heightPercent, LerpGradient(cloudType));
 }
 
 float3 ApplyWind(float3 worldPos) {
@@ -52,7 +68,7 @@ float3 ApplyWind(float3 worldPos) {
 
 	//animate clouds in wind direction and add a small upward bias to the wind direction
 	worldPos.xz -= (_WindDirection.xy + float3(0.0, 0.1, 0.0)) * _Time.y * _WindDirection.z;
-
+	worldPos.y -= _WindDirection.z * 0.4 * _Time.y;
 	return worldPos;
 }
 
@@ -96,35 +112,34 @@ float LowresSample(float3 worldPos,int lod, bool cheap) {
 	float low_freq_fBm = (tempResult.g * 0.625) + (tempResult.b * 0.25) + (tempResult.a * 0.125);
 
 	// define the base cloud shape by dilating it with the low frequency fBm made of Worley noise.
-	float sampleResult = Remap(tempResult.r, -(1.0 - low_freq_fBm), 1.0, 0.0, 1.0);
+	float sampleResult = tempResult.r;
+	sampleResult = Remap(tempResult.r, -(1.0 - low_freq_fBm), 1.0, 0.0, 1.0);
 
 	half4 coverageSampleUV = half4(TRANSFORM_TEX((unwindWorldPos.xz / _WeathermapSize), _CoverageTex), 0, 0);
 	coverageSampleUV.xy = (coverageSampleUV.xy + 0.5);	
-	//coverageSampleUV.xy += _WindDirection.xy * _Time.x / 20;
 	float3 weatherData = tex2Dlod(_CoverageTex, coverageSampleUV);
 	float coverage = weatherData.r;
 	sampleResult *= SampleHeight(heightPercent, weatherData.b);
 	//Anvil style.
 	//coverage = pow(coverage, RemapClamped(heightPercent, 0.7, 0.8, 1.0, lerp(1.0, 0.5, 1.0)));
 
-	sampleResult = RemapClamped(sampleResult, 1 - coverage, 1.0, 0.0, 1.0);	//different from slider.
+	sampleResult = RemapClamped(sampleResult, 1.0 - coverage, 1.0, 0.0, 1.0);	//different from slider.
 	 
 	sampleResult *= coverage;
 
 	sampleResult *= Remap(weatherData.g,0,1,.5,1.0);
-	
+	 
 	if (!cheap) {
-		float2 curl_noise = tex2Dlod(_CurlNoise, float4(worldPos.xz / _CloudSize * _CurlTile, 0.0, 1.0)).rg;
+		float2 curl_noise = tex2Dlod(_CurlNoise, float4(unwindWorldPos.xz / _CloudSize * _CurlTile, 0.0, 1.0)).rg;
 		worldPos.xz += curl_noise.rg * (1.0 - heightPercent) * _CloudSize * _CurlSize;
 
 		float3 tempResult2;
 		tempResult2 = tex3Dlod(_DetailTex, half4(worldPos / _CloudSize * _DetailTile, lod)).rgb;
 		float detailsampleResult = (tempResult2.r * 0.625) + (tempResult2.g * 0.25) + (tempResult2.b * 0.125);
-
-		float high_freq_noise_modifier = lerp(detailsampleResult, 1.0 - detailsampleResult, saturate(heightPercent * 10.0));
-
-		sampleResult = Remap(sampleResult, high_freq_noise_modifier * _DetailSize, 1.0, 0.0, 1.0);
-	} 
+		detailsampleResult = 1.0 - detailsampleResult;
+		float detail_modifier = lerp(detailsampleResult, 1.0 - detailsampleResult, saturate(heightPercent * 1));
+		sampleResult = Remap(sampleResult, detail_modifier * _DetailSize, 1.0, 0.0, 1.0);
+	}
 	
 	return max(0, sampleResult);
 }
@@ -181,13 +196,13 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 	startPos += dir * toAtmosphereDistance ;		//step 1
 
 	int sample_count = lerp(MAX_SAMPLE_COUNT, MIN_SAMPLE_COUNT, dir.y);	//dir.y ==0 means horizontal, use maximum sample count
+	float sample_step = lerp(75, 125, saturate(1 - dir.y * 2));	//when near horizontal, extend the sample step.
 		
 	float3 edge1 = float3(startPos.x, 0, startPos.z);						//edge1 is a vector from (0,0,0) to startPos but y-component is zero.
 	float3 edge2 = float3(startPos.x, startPos.y + earthRadius, startPos.z);	//edge2 is from earth center to startPos.
 	float sinTheta = dot(normalize(edge1), normalize(edge2));				//these edges form exactly the same angle with the angle from (0,1,0) to corrected dir
 	dir = normalize(lerp(dir, float3(0,4,0), sinTheta));		//step 2, this is just a approximation, i'm poor at math, if u have better idea tell me plz.
 	
-	float sample_step = 75;
 
 	if (startPos.y < -5000) {	//Clip all things below horizon.
 		intensity = 0;

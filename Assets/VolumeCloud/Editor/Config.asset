@@ -20,19 +20,15 @@ MonoBehaviour:
       octaves: 4
   first3DTexGenerator:
     texResolution: 128
-    worleyOcataves: 3
     perlinOctaves: 3
-    channel1WorleyPeriod: 8
-    channel1PerlinPeriod: 8
-    channel1WorleyPercent: 0.5
-    channel2WorleyPeriod: 8
-    channel3WorleyPeriod: 16
-    channel4WorleyPeriod: 32
-  first3DTexSaveName: First3DTex
+    channel1PerlinPeriod: 16
+    channel2WorleyPeriod: 16
+    channel3WorleyPeriod: 32
+    channel4WorleyPeriod: 64
+  first3DTexSaveName: First3DTexAlter
   second3DTexGenerator:
     texResolution: 32
-    worleyOcataves: 4
     channel1WorleyFreq: 4
     channel2WorleyFreq: 8
     channel3WorleyFreq: 16
-  second3DTexSaveName: Second3DTex
+  second3DTexSaveName: Second3DTexAlt
