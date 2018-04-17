@@ -163,11 +163,13 @@
 
 				half CurrentCorrect(float2 uv,float2 jitter) {
 					float2 currSampleValid = 0;
-					float2 texelPos = uv * _MainTex_TexelSize.zw;
-					half2 currSampleTexel = texelPos - jitter;
-					currSampleValid = step(frac((currSampleTexel) / 4), .2);
-					float2 fract = frac(currSampleTexel / 4);
-					return currSampleValid.x * currSampleValid.y;
+					float2 texelPos = uv * _MainTex_TexelSize.zw - jitter;
+					float2 currentTexelOffset = fmod(texelPos, 4);
+
+					//if currentTexelOffset is close to 0.5, this should be a correct pixel.
+					float2 valid = saturate(2 * (0.5 - abs(currentTexelOffset - 0.5)));
+					
+					return valid.x * valid.y;
 				}
 
 				half4 frag(v2f i) : SV_Target

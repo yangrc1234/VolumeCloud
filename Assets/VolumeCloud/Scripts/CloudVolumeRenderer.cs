@@ -34,8 +34,8 @@ using UnityEngine.Rendering;
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 4; j++) {
                 var index = tempList[i * 4 + j];
-                offset[index, 0] = i - 2;
-                offset[index, 1] = j - 2;
+                offset[index, 0] = i;
+                offset[index, 1] = j;
             }
         }
     }

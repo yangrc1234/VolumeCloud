@@ -56,8 +56,9 @@ float CalculateGradient(float a, float4 gradient)
 	return smoothstep(gradient.x, gradient.y, a) - smoothstep(gradient.z, gradient.w, a); 
 }
 
+//from gamedev post
 float SampleHeight(float heightPercent,float cloudType) {
-	return CalculateGradient(heightPercent, LerpGradient(cloudType));
+	return CalculateGradient(heightPercent, LerpGradient(cloudType));		
 }
 
 float3 ApplyWind(float3 worldPos) {
@@ -192,7 +193,7 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 		toAtmosphereDistance = -dot(dir, ominusc) + pow(pow(dot(dir, ominusc), 2) - dot(ominusc, ominusc) + pow(CENTER - THICKNESS / 2 + earthRadius, 2), 0.5);
 	}
 
-	depth = toAtmosphereDistance;
+	depth = toAtmosphereDistance;	//TODO: Depth won't work when above cloud. this should be fixed.
 	startPos += dir * toAtmosphereDistance ;		//step 1
 
 	int sample_count = lerp(MAX_SAMPLE_COUNT, MIN_SAMPLE_COUNT, dir.y);	//dir.y ==0 means horizontal, use maximum sample count
@@ -203,7 +204,6 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 	float sinTheta = dot(normalize(edge1), normalize(edge2));				//these edges form exactly the same angle with the angle from (0,1,0) to corrected dir
 	dir = normalize(lerp(dir, float3(0,4,0), sinTheta));		//step 2, this is just a approximation, i'm poor at math, if u have better idea tell me plz.
 	
-
 	if (startPos.y < -5000) {	//Clip all things below horizon.
 		intensity = 0;
 		depth = 0;
@@ -225,12 +225,12 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 			float sampleResult = LowresSample(rayPos, 0, true);
 			if (sampleResult > 0) {
 				detailedSample = true;
-				raymarchDistance -= sample_step * 2;
+				raymarchDistance -= sample_step * 3;
 				missedStepCount = 0;
 				continue;
 			}
 			else {
-				raymarchDistance += sample_step * 2;
+				raymarchDistance += sample_step * 3;
 			}
 		}
 		else {
