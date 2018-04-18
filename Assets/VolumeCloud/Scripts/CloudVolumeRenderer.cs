@@ -7,13 +7,15 @@ using UnityEngine.Rendering;
 [ImageEffectAllowedInSceneView]
 [ExecuteInEditMode,RequireComponent(typeof(Camera))]
     public class CloudVolumeRenderer : EffectBase {
-    public Material mat;
+    public VolumeCloudConfiguration configuration;
+    private Material mat;
+
     private RenderTexture[] fullBuffer;
     private int fullBufferIndex;
     private RenderTexture lowresBuffer;
-    private Matrix4x4 currP;
     private Matrix4x4 prevV;
     private Camera mcam;
+    
     // The index of 4x4 pixels.
     private int frameIndex = 0;
 
@@ -40,10 +42,33 @@ using UnityEngine.Rendering;
         }
     }
 
+    void EnsureMaterial() {
+        if (mat == null) {
+            var shader = Resources.Load<Shader>("VolumeCloud/Shaders/CloudShader");
+            var baseTex = Resources.Load<Texture3D>("VolumeCloud/Textures/BaseNoise");
+            var detailTex = Resources.Load<Texture3D>("VolumeCloud/Textures/DetailNoise");
+            var curlTex = Resources.Load<Texture2D>("VolumeCloud/Textures/CurlNoise");
+            var blurTex = Resources.Load<Texture2D>("VolumeCloud/Textures/BlueNoise");
+            mat = new Material(shader);
+            mat.SetTexture("_BaseTex", baseTex);
+            mat.SetTexture("_DetailTex", detailTex);
+            mat.SetTexture("_CurlNoise", curlTex);
+            mat.SetTexture("_BlueNoise", blurTex);
+        }
+    }
+
     private void OnRenderImage(RenderTexture source, RenderTexture destination) {
+        if (this.configuration == null) {
+            Graphics.Blit(source, destination);
+            return;
+        }
+
         mcam = GetComponent<Camera>();
         var width = mcam.pixelWidth;
         var height = mcam.pixelHeight;
+
+        this.EnsureMaterial();
+        this.configuration.ApplyToMaterial(this.mat);
 
         EnsureArray(ref fullBuffer, 2);
         EnsureRenderTarget(ref fullBuffer[0], width, height, RenderTextureFormat.ARGBHalf, FilterMode.Bilinear);

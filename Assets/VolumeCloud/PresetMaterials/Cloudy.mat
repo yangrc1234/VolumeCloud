@@ -18,6 +18,10 @@ Material:
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
+    - _BaseTex:
+        m_Texture: {fileID: 11700000, guid: f718e19062d81794caedb9f7d4fa5791, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _BlueNoise:
         m_Texture: {fileID: 2800000, guid: 29436441cc3be984ba371ffc2c77f604, type: 3}
         m_Scale: {x: 1, y: 1}
@@ -86,24 +90,32 @@ Material:
         m_Texture: {fileID: 11700000, guid: f718e19062d81794caedb9f7d4fa5791, type: 2}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _WeatherTex:
+        m_Texture: {fileID: 2800000, guid: c73be893af46a1e4db152d42aacae768, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Floats:
     - _AtmosphereBlendFactor: 0.0002
     - _AtmosphereColorSaturateDistance: 100000
     - _BaseShapeTile: 3
+    - _BaseTile: 3
     - _BeerLaw: 200
     - _BumpScale: 1
+    - _CloudDensity: 0.1
     - _CloudDentisy: 0.1
     - _CloudSize: 50000
     - _CloudTopOffset: 1000
     - _CondenseDensity: 0.001
     - _Cover: 0.63
     - _CurlSize: 1
+    - _CurlStrength: 0
     - _CurlTile: 0.2
     - _Cutoff: 0.1
     - _Detail: 1
     - _DetailMask: 0.1
     - _DetailNormalMapScale: 1
     - _DetailSize: 0.2
+    - _DetailStrength: 0.2
     - _DetailTile: 48
     - _DstBlend: 0
     - _GlossMapScale: 1
@@ -123,15 +135,16 @@ Material:
     - _SrcBlend: 1
     - _Transcluency: 2048
     - _UVSec: 0
+    - _WeatherTexSize: 25000
     - _WeathermapSize: 25000
     - _ZWrite: 1
     m_Colors:
-    - _AmbientColor: {r: 0.35575262, g: 0.37658095, b: 0.5147059, a: 1}
-    - _AtmosphereColor: {r: 0.41782007, g: 0.51015395, b: 0.61764705, a: 1}
+    - _AmbientColor: {r: 0.366, g: 0.366, b: 0.541, a: 0}
+    - _AtmosphereColor: {r: 0.4766436, g: 0.48061082, b: 0.5588235, a: 0}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _Cutoff: {r: 0.44, g: 0.99, b: 0.99, a: 0.99}
     - _DetailCutoff: {r: 0.99, g: 0.99, b: 0, a: 0}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _SkyColor: {r: 0.4, g: 0.5, b: 0.6, a: 1}
-    - _WindDirection: {r: 1, g: 0, b: 80, a: 0}
+    - _WindDirection: {r: 1, g: 1, b: 60, a: -60}
     - debug: {r: -1.97, g: -0.69, b: 1, a: 0}
