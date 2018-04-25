@@ -4,6 +4,7 @@ using UnityEngine;
 
 [CreateAssetMenu]
 public class VolumeCloudConfiguration : ScriptableObject {
+    [Header("Shape")]
     public float baseTile;
     public float detailTile;
     public float detailStrength;
@@ -17,6 +18,7 @@ public class VolumeCloudConfiguration : ScriptableObject {
     public Vector2 windDirection;
     public float windSpeed;
     
+    [Header("Lighting")]
     public float beerLawStrength;
     public float silverIntensity;
     public float silverSpread;
@@ -25,6 +27,8 @@ public class VolumeCloudConfiguration : ScriptableObject {
     public Color atmosphereColor;
     public float atmosphereSaturateDistance;
 
+    [Header("Weather map")]
+    [Tooltip("R for coverage, G for density, B for cloud type")]
     public Texture2D weatherTex;
     public float weatherTexSize = 40000;
 
@@ -39,7 +43,7 @@ public class VolumeCloudConfiguration : ScriptableObject {
         public static int detailStrength = Shader.PropertyToID("_DetailStrength");
         public static int curlTile = Shader.PropertyToID("_CurlTile");
         public static int curlStrength = Shader.PropertyToID("_CurlStrength");
-        public static int topOffset = Shader.PropertyToID("_CloudTopOfset");
+        public static int topOffset = Shader.PropertyToID("_CloudTopOffset");
         public static int cloudSize = Shader.PropertyToID("_CloudSize");
         public static int cloudDensity = Shader.PropertyToID("_CloudDensity");
         public static int windDirection = Shader.PropertyToID("_WindDirection");

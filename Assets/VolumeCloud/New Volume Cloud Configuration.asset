@@ -20,7 +20,7 @@ MonoBehaviour:
   overallDensity: 0.1
   overallSize: 50000
   windDirection: {x: 1, y: 1}
-  windSpeed: 60
+  windSpeed: 0
   beerLawStrength: 200
   silverIntensity: 0.8
   silverSpread: 0.7
