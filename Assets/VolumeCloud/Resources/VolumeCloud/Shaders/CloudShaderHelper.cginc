@@ -2,8 +2,10 @@
 #define MIN_SAMPLE_COUNT 64
 #define MAX_SAMPLE_COUNT 128
 
-#define THICKNESS 6500
-#define CENTER 4750
+#define THICKNESS 6500.0
+#define CENTER 4750.0
+
+#define earthRadius 6500000.0
 //Base shape
 sampler3D _BaseTex;
 float _BaseTile;
@@ -62,13 +64,21 @@ float CalculateGradient(float a, float4 gradient)
 	return smoothstep(gradient.x, gradient.y, a) - smoothstep(gradient.z, gradient.w, a); 
 }
 
+float HeightPercent(float3 worldPos) {
+	float sqrMag = worldPos.x * worldPos.x + worldPos.z * worldPos.z;
+
+	float heightOffset = earthRadius - sqrt(max(0.0,earthRadius * earthRadius - sqrMag));
+
+	return saturate((worldPos.y + heightOffset - CENTER + THICKNESS / 2) / THICKNESS);
+}
+
 //from gamedev post
 float SampleHeight(float heightPercent,float cloudType) {
 	return CalculateGradient(heightPercent, LerpGradient(cloudType));		
 }
 
 float3 ApplyWind(float3 worldPos) {
-	float heightPercent = saturate((worldPos.y - CENTER + THICKNESS / 2) / THICKNESS);
+	float heightPercent = HeightPercent(worldPos);
 	
 	// skew in wind direction
 	worldPos.xz -= (heightPercent) * _WindDirection.xy * _CloudTopOffset;
@@ -96,7 +106,7 @@ float BeerLaw(float d, float cosTheta) {
 }
   
 float Inscatter(float3 worldPos,float dl, float cosTheta) {
-	float heightPercent = saturate((worldPos.y - CENTER + THICKNESS / 2) / THICKNESS);
+	float heightPercent = HeightPercent(worldPos);
 	float lodded_density = saturate(SampleDensity(worldPos, 1, false));
 	float depth_probability = 0.05 + pow(lodded_density, RemapClamped(heightPercent, 0.3, 0.85, 0.5, 2.0));
 	depth_probability = lerp(depth_probability, 1.0, saturate(dl * 50));
@@ -111,7 +121,7 @@ float Energy(float3 worldPos, float d, float cosTheta) {
 
 float SampleDensity(float3 worldPos,int lod, bool cheap) {
 
-	float heightPercent = saturate((worldPos.y - CENTER + THICKNESS / 2) / THICKNESS);
+	float heightPercent = HeightPercent(worldPos);
 	fixed4 tempResult;
 	float3 unwindWorldPos = worldPos;
 	worldPos = ApplyWind(worldPos);
@@ -175,43 +185,26 @@ float SampleEnergy(float3 worldPos, float3 viewDir) {
 }
 
 float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raymarchOffset, out float intensity,out float depth) {
+	int sample_count = lerp(MAX_SAMPLE_COUNT, MIN_SAMPLE_COUNT, dir.y);	//dir.y ==0 means horizontal, use maximum sample count
+	float sample_step = 75;	//the last version use larger sample step when near horizontal, which causes weird "band"
 
-	/* Atmosphere shape correction 
-	*  by 
-	*  1. Extend ray to atmosphere.
-	*  2. Calculate corrected dir.
-	*  3. moving raypos up to where cloud begin.
-	*/
-
-	float earthRadius = 6400000;	
+	//March ray to bottom of the atmosphere.
 	float3 earthCenter = float3(0, -earthRadius, 0);
 	float3 ominusc = startPos - earthCenter;
 	float toAtmosphereDistance;
-	if (startPos.y > CENTER - THICKNESS / 2) {
+	if (startPos.y > CENTER - THICKNESS / 2) {		//TODO: correct this.
 		toAtmosphereDistance = 1.0;
 	}
 	else {
 		toAtmosphereDistance = -dot(dir, ominusc) + pow(pow(dot(dir, ominusc), 2) - dot(ominusc, ominusc) + pow(CENTER - THICKNESS / 2 + earthRadius, 2), 0.5);
 	}
-
 	depth = toAtmosphereDistance;	//TODO: Depth won't work when above cloud. this should be fixed.
-	startPos += dir * toAtmosphereDistance ;		//step 1
+	startPos += dir * sample_step * floor(toAtmosphereDistance / sample_step);		//another fix for "band".
 
-	int sample_count = lerp(MAX_SAMPLE_COUNT, MIN_SAMPLE_COUNT, dir.y);	//dir.y ==0 means horizontal, use maximum sample count
-	float sample_step = lerp(75, 125, saturate(1 - dir.y * 2));	//when near horizontal, extend the sample step.
-		
-	float3 edge1 = float3(startPos.x, 0, startPos.z);						//edge1 is a vector from (0,0,0) to startPos but y-component is zero.
-	float3 edge2 = float3(startPos.x, startPos.y + earthRadius, startPos.z);	//edge2 is from earth center to startPos.
-	float sinTheta = dot(normalize(edge1), normalize(edge2));				//these edges form exactly the same angle with the angle from (0,1,0) to corrected dir
-	dir = normalize(lerp(dir, float3(0,4,0), sinTheta));		//step 2, this is just a approximation, i'm poor at math, if u have better idea tell me plz.
-	
-	if (startPos.y < -5000) {	//Clip all things below horizon.
-		intensity = 0;
-		depth = 0;
-		return 0;
+	if (startPos.y < -50000) {
+		intensity = 0.0;
+		return 0.0;
 	}
-
-	startPos.y = max(startPos.y,CENTER - THICKNESS / 2);
 
 	float alpha = 0;
 	intensity = 0;
@@ -248,6 +241,7 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 				intensity += (1 - alpha) * sampledEnergy * sampledAlpha;
 				alpha += (1 - alpha) * sampledAlpha;
 				if (alpha > 1) {
+					intensity /= alpha;
 					return 1;
 				}
 			}
