@@ -56,6 +56,8 @@ using UnityEngine.Rendering;
             mat.SetTexture("_BlueNoise", blurTex);
         }
     }
+    [Range(0,2)]
+    public int downSample = 1;
 
     private void OnRenderImage(RenderTexture source, RenderTexture destination) {
         if (this.configuration == null) {
@@ -64,8 +66,8 @@ using UnityEngine.Rendering;
         }
 
         mcam = GetComponent<Camera>();
-        var width = mcam.pixelWidth;
-        var height = mcam.pixelHeight;
+        var width = mcam.pixelWidth >> downSample;
+        var height = mcam.pixelHeight >> downSample;
 
         this.EnsureMaterial();
         this.configuration.ApplyToMaterial(this.mat);
@@ -81,9 +83,10 @@ using UnityEngine.Rendering;
         /* Some code is from playdead TAA. */
 
         //1. Render low-res buffer.
-        float offsetX = (float)offset[frameIndex, 0] ;
-        float offsetY = (float)offset[frameIndex, 1] ;
-        mat.SetVector("_ProjectionExtents", mcam.GetProjectionExtents(offsetX,offsetY));
+        float offsetX = offset[frameIndex, 0];
+        float offsetY = offset[frameIndex, 1];
+        //GetProjectionExtents will offset the camera "window".
+        mat.SetVector("_ProjectionExtents", mcam.GetProjectionExtents(offsetX * (1 << downSample), offsetY * (1 << downSample)));
         Graphics.Blit(null, lowresBuffer, mat, 0);
         
         //2. Blit low-res buffer with previous image to make full-res result.

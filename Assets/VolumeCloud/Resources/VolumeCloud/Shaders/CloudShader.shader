@@ -1,4 +1,7 @@
-﻿Shader "Unlit/CloudShader"
+﻿// Upgrade NOTE: commented out 'float4x4 _CameraToWorld', a built-in variable
+// Upgrade NOTE: replaced '_CameraToWorld' with 'unity_CameraToWorld'
+
+Shader "Unlit/CloudShader"
 {
 	Properties
 	{
@@ -85,7 +88,8 @@
 					depthValue += 100000;		//makes it work even with very low far plane value.
 				}
 				float2 screenPos = i.screenPos.xy / i.screenPos.w;
-				float noiseSample = (tex2D(_BlueNoise, screenPos * _ScreenParams.xy / 64 + _Time.y * 20).a) ;
+				//float noiseSample = (tex2D(_BlueNoise, screenPos * _ScreenParams.xy / 64 + _Time.y * 20).a) ;
+				float noiseSample = 0;
 				float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
 				float intensity;
 				float depth;
@@ -155,19 +159,26 @@
 				}
 
 				float4 SampleCurrent(float2 uv) {
-					uv = uv - (_Jitter - 2)* _MainTex_TexelSize.xy;
+					uv = uv - (_Jitter - 1.5) * _MainTex_TexelSize.xy;
 					float4 currSample = tex2D(_LowresCloudTex, uv);
 					return currSample;
 				}
 
 				half CurrentCorrect(float2 uv,float2 jitter) {
+					float2 texelRelativePos = fmod(uv * _MainTex_TexelSize.zw, 4);//between (0, 4.0)
+
+					texelRelativePos -= jitter;
+					float2 valid = saturate(2 * (0.5 - abs(texelRelativePos - 0.5)));
+					return valid.x * valid.y;
+
+					/*
 					float2 currSampleValid = 0;
 					float2 texelPos = uv * _MainTex_TexelSize.zw - jitter;
 					float2 currentTexelOffset = fmod(texelPos, 4);
 
 					//if currentTexelOffset is close to 0.5, this should be a correct pixel.
 					float2 valid = saturate(2 * (0.5 - abs(currentTexelOffset - 0.5)));
-					
+					*/
 					return valid.x * valid.y;
 				}
 

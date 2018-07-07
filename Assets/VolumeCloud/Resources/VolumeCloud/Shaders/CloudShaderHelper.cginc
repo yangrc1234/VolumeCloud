@@ -1,6 +1,6 @@
 #include "UnityCG.cginc"
-#define MIN_SAMPLE_COUNT 64
-#define MAX_SAMPLE_COUNT 128
+#define MIN_SAMPLE_COUNT 56
+#define MAX_SAMPLE_COUNT 96
 
 #define THICKNESS 6500.0
 #define CENTER 4750.0
