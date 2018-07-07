@@ -68,6 +68,8 @@ using UnityEngine.Rendering;
         mcam = GetComponent<Camera>();
         var width = mcam.pixelWidth >> downSample;
         var height = mcam.pixelHeight >> downSample;
+        width = width & (~3);   //make sure the width and height could be divided by 4, otherwise the low-res buffer can't be aligned with full-res buffer
+        height = height & (~3);
 
         this.EnsureMaterial();
         this.configuration.ApplyToMaterial(this.mat);

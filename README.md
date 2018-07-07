@@ -19,7 +19,6 @@ Most of the techniques are the same from the slides.
 ## Known issues 
 Cloud can only be rendered behind objects. This is not resolved in the original presentation either.  
 When moving the camera, the reprojection quality is not good, and whole image become blurred, the rendering process become very visible(especially when downsampled).  
-When using a resolution not that "good", e.g. 1371 * 999, there will be ghost cloud around, since the low-res buffer couldn't align correctly with full-res buffer. The solution is to use a "nice" resolution(width and height can both be divided by 4). 
 
 ## TODO
 Add depth clipping stuff.
