@@ -7,12 +7,18 @@ public class VolumeCloudConfiguration : ScriptableObject {
     [Header("Shape")]
     public float baseTile;
     public float detailTile;
+    [Range(0,1)]
     public float detailStrength;
     public float curlTile;
     public float curlStrength;
     public float topOffset;
 
+    [Range(0,1)]
     public float overallDensity;
+    [Range(0,1)]
+    public float cloudTypeModifier;
+    [Range(0,1)]
+    public float cloudCoverageModifier;
     public float overallSize;
 
     public Vector2 windDirection;
@@ -46,6 +52,8 @@ public class VolumeCloudConfiguration : ScriptableObject {
         public static int topOffset = Shader.PropertyToID("_CloudTopOffset");
         public static int cloudSize = Shader.PropertyToID("_CloudSize");
         public static int cloudDensity = Shader.PropertyToID("_CloudDensity");
+        public static int cloudTypeModifier = Shader.PropertyToID("_CloudTypeModifier");
+        public static int cloudCoverageModifier = Shader.PropertyToID("_CloudCoverageModifier");
         public static int windDirection = Shader.PropertyToID("_WindDirection");
         public static int weatherTex = Shader.PropertyToID("_WeatherTex");
         public static int weatherTexSize = Shader.PropertyToID("_WeatherTexSize");
@@ -67,6 +75,9 @@ public class VolumeCloudConfiguration : ScriptableObject {
         mat.SetFloat(PropertyHash.topOffset, topOffset);
         mat.SetFloat(PropertyHash.cloudSize, overallSize);
         mat.SetFloat(PropertyHash.cloudDensity, overallDensity);
+        mat.SetFloat(PropertyHash.cloudTypeModifier, cloudTypeModifier);
+        mat.SetFloat(PropertyHash.cloudCoverageModifier, cloudCoverageModifier);
+
         mat.SetVector(PropertyHash.windDirection, new Vector4(windDirection.x,windDirection.y, windSpeed,-windSpeed));
         mat.SetTexture(PropertyHash.weatherTex, weatherTex);
         mat.SetFloat(PropertyHash.weatherTexSize, weatherTexSize);

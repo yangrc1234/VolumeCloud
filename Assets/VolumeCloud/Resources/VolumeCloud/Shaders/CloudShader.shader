@@ -17,6 +17,8 @@ Shader "Unlit/CloudShader"
 		_CloudTopOffset("TopOffset",float) = 100
 		_CloudDensity("CloudDensity",float) = .1
 		_CloudSize("CloudSize", float) = 50000
+		_CloudCoverageModifier("CloudCoverageModifier", float) = 1.0
+		_CloudTypeModifier("CloudTypeModifier", float) = 1.0
 		_WeatherTex("WeatherTex", 2D) = "white" {}
 		_WeatherTexSize("WeatherTexSize", float) = 25000
 		_WindDirection("WindDirection",Vector) = (1,1,0,0)
@@ -89,7 +91,7 @@ Shader "Unlit/CloudShader"
 				}
 				float2 screenPos = i.screenPos.xy / i.screenPos.w;
 				//float noiseSample = (tex2D(_BlueNoise, screenPos * _ScreenParams.xy / 64 + _Time.y * 20).a) ;
-				float noiseSample = 0;
+				float noiseSample = fmod(_Time.y, 1.0);
 				float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
 				float intensity;
 				float depth;
@@ -143,7 +145,7 @@ Shader "Unlit/CloudShader"
 					v2f o;
 					o.vertex = UnityObjectToClipPos(v.vertex);
 					o.uv = v.uv;
-					o.vsray = (2.0 * v.uv - 1.0) * _ProjectionExtents.xy;
+					o.vsray = (2.0 * v.uv - 1.0) * _ProjectionExtents.xy + _ProjectionExtents.zw;
 					return o;
 				}
 
@@ -151,10 +153,12 @@ Shader "Unlit/CloudShader"
 					float4 wspos = mul(unity_CameraToWorld,float4(vspos,1.0));
 					float4 prevUV = mul(_PrevVP, wspos);
 					prevUV.xy = 0.5 * (prevUV.xy / prevUV.w) + 0.5;
+					half4 prevSample = tex2D(_MainTex, prevUV.xy);
+
 					half oobmax = max(0.0 - prevUV.x,0.0 - prevUV.y);
 					half oobmin = max(prevUV.x - 1.0, prevUV.y - 1.0);
 					outOfBound = step(0,max(oobmin, oobmax));
-					half4 prevSample = tex2D(_MainTex, prevUV.xy);
+
 					return prevSample;
 				}
 
@@ -196,7 +200,8 @@ Shader "Unlit/CloudShader"
 					float3 vspos = float3(i.vsray, 1.0) * depth;
 					half4 prevSample = SamplePrev(i.uv, vspos, outOfBound);
 
-					half correct = max(CurrentCorrect(i.uv, _Jitter), outOfBound);
+					half correct = max(CurrentCorrect(i.uv, _Jitter) * 0.5, outOfBound);
+				//	correct = 0;
 					return lerp(prevSample, result, correct);
 				}
 				ENDCG

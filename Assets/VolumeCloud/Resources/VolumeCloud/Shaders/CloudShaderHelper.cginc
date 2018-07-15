@@ -1,6 +1,6 @@
 #include "UnityCG.cginc"
-#define MIN_SAMPLE_COUNT 56
-#define MAX_SAMPLE_COUNT 96
+#define MIN_SAMPLE_COUNT 128
+#define MAX_SAMPLE_COUNT 128
 
 #define THICKNESS 6500.0
 #define CENTER 4750.0
@@ -24,6 +24,8 @@ float _CloudTopOffset;
 float _CloudSize;
 //Overall Density
 float _CloudDensity;
+float _CloudCoverageModifier;
+float _CloudTypeModifier;
 
 half4 _WindDirection;
 sampler2D _WeatherTex;
@@ -74,7 +76,8 @@ float HeightPercent(float3 worldPos) {
 
 //from gamedev post
 float SampleHeight(float heightPercent,float cloudType) {
-	return CalculateGradient(heightPercent, LerpGradient(cloudType));		
+
+	return RemapClamped(heightPercent, 0.0, 1.0, 1.0, 0.2) * CalculateGradient(heightPercent, LerpGradient(cloudType));
 }
 
 float3 ApplyWind(float3 worldPos) {
@@ -100,7 +103,7 @@ float BeerLaw(float d, float cosTheta) {
 	d *= _BeerLaw;
 	float firstIntes = exp(-d);
 	float secondIntens = exp(-d * 0.25) * 0.7;
-	float secondIntensCurve = 0.5;
+	float secondIntensCurve = .5;
 	float tmp = max(firstIntes, secondIntens * RemapClamped(cosTheta, 0.7, 1.0, secondIntensCurve, secondIntensCurve * 0.25));
 	return tmp;
 }
@@ -126,15 +129,17 @@ float SampleDensity(float3 worldPos,int lod, bool cheap) {
 	float3 unwindWorldPos = worldPos;
 	worldPos = ApplyWind(worldPos);
 	tempResult = tex3Dlod(_BaseTex, half4(worldPos / _CloudSize * _BaseTile, lod)).rgba;
-	float low_freq_fBm = (tempResult.g * 0.625) + (tempResult.b * 0.25) + (tempResult.a * 0.125);
+	float low_freq_fBm = (tempResult.g * 0.2) + (tempResult.b * 0.5) + (tempResult.a * 0.625);
 
 	// define the base cloud shape by dilating it with the low frequency fBm made of Worley noise.
 	float sampleResult = tempResult.r;
-	sampleResult = Remap(tempResult.r, -(1.0 - low_freq_fBm), 1.0, 0.0, 1.0);
+	sampleResult = Remap(tempResult.r, low_freq_fBm - 0.8, 1.0, 0.0, 1.0);
+	//sampleResult = tempResult.r;
 
-	half4 coverageSampleUV = half4((unwindWorldPos.xz / _WeatherTexSize), 0, 0);
+	half4 coverageSampleUV = half4((unwindWorldPos.xz / _WeatherTexSize), 0, 2.5);
 	coverageSampleUV.xy = (coverageSampleUV.xy + 0.5);	
 	float3 weatherData = tex2Dlod(_WeatherTex, coverageSampleUV);
+	weatherData *= float3(_CloudCoverageModifier, 1.0, _CloudTypeModifier);
 	float coverage = weatherData.r;
 	sampleResult *= SampleHeight(heightPercent, weatherData.b);
 	//Anvil style.
@@ -171,14 +176,16 @@ float SampleEnergy(float3 worldPos, float3 viewDir) {
 
 	float totalSample = 0;
 	int mipmapOffset = 0.5;
+	float step = 1;
 	for (float i = 1; i <= DETAIL_ENERGY_SAMPLE_COUNT; i++) {
 		half3 rand3 = half3(rand(half3(0, i, 0)), rand(half3(1, i, 0)), rand(half3(0, i, 1)));
 		half3 direction = _WorldSpaceLightPos0 * 2 + normalize(rand3);
 		direction = normalize(direction);
 		float3 samplePoint = worldPos 
-			+ (direction * i / DETAIL_ENERGY_SAMPLE_COUNT) * 1024;
+			+ (direction * step / DETAIL_ENERGY_SAMPLE_COUNT) * 256;
 		totalSample += SampleDensity(samplePoint, mipmapOffset,0);
 		mipmapOffset += 0.5;
+		step *= 2;
 	}
 	float energy = Energy(worldPos ,totalSample / DETAIL_ENERGY_SAMPLE_COUNT * _CloudDensity, dot(viewDir, _WorldSpaceLightPos0));
 	return energy;
