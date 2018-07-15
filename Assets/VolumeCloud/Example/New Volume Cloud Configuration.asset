@@ -23,7 +23,7 @@ MonoBehaviour:
   overallSize: 50000
   windDirection: {x: 1, y: 1}
   windSpeed: 60
-  beerLawStrength: 400
+  beerLawStrength: 1600
   silverIntensity: 0.8
   silverSpread: 0.7
   ambientColor: {r: 0.39608565, g: 0.5356938, b: 0.72794116, a: 0}

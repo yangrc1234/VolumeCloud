@@ -5,7 +5,12 @@
 #define THICKNESS 6500.0
 #define CENTER 4750.0
 
-#define earthRadius 6500000.0
+#define EARTH_RADIUS 5000000.0
+#define EARTH_CENTER float3(0, -EARTH_RADIUS, 0)
+
+#define CLOUDS_START (CENTER - THICKNESS/2)
+#define CLOUDS_END (CENTER + THICKNESS/2)
+
 //Base shape
 sampler3D _BaseTex;
 float _BaseTile;
@@ -69,7 +74,7 @@ float CalculateGradient(float a, float4 gradient)
 float HeightPercent(float3 worldPos) {
 	float sqrMag = worldPos.x * worldPos.x + worldPos.z * worldPos.z;
 
-	float heightOffset = earthRadius - sqrt(max(0.0,earthRadius * earthRadius - sqrMag));
+	float heightOffset = EARTH_RADIUS - sqrt(max(0.0, EARTH_RADIUS * EARTH_RADIUS - sqrMag));
 
 	return saturate((worldPos.y + heightOffset - CENTER + THICKNESS / 2) / THICKNESS);
 }
@@ -183,7 +188,7 @@ float SampleEnergy(float3 worldPos, float3 viewDir) {
 		direction = normalize(direction);
 		float3 samplePoint = worldPos 
 			+ (direction * step / DETAIL_ENERGY_SAMPLE_COUNT) * 256;
-		totalSample += SampleDensity(samplePoint, mipmapOffset,0);
+		totalSample += SampleDensity(samplePoint, mipmapOffset, 0);
 		mipmapOffset += 0.5;
 		step *= 2;
 	}
@@ -191,24 +196,41 @@ float SampleEnergy(float3 worldPos, float3 viewDir) {
 	return energy;
 }
 
+//Code from https://area.autodesk.com/blogs/game-dev-blog/volumetric-clouds/.
+float2 ray_trace_sphere(float3 center, float3 rd, float3 offset, float radius) {
+	float3 p = center - offset;
+	float b = dot(p, rd);
+	float c = dot(p, p) - (radius * radius);
+
+	float f = b * b - c;
+	if (f >= 0.0) {
+		float t1 = -b - sqrt(f);
+		float t2 = -b + sqrt(f);
+		return float2(t1, t2);
+	}
+	return -1.0;
+}
+//same as above
+void find_atmosphere_intersections(float3 ws_origin, float3 ws_ray, out float3 start, out float3 end) {
+	float2 inner_solutions = ray_trace_sphere(ws_origin, ws_ray, EARTH_CENTER, EARTH_RADIUS + CLOUDS_START);
+	float2 outer_solutions = ray_trace_sphere(ws_origin, ws_ray, EARTH_CENTER, EARTH_RADIUS + CLOUDS_END);
+	float t_inner_sphere = max(inner_solutions.x, inner_solutions.y);
+	float t_outer_sphere = max(outer_solutions.x, outer_solutions.y);
+
+	start = ws_origin + ws_ray * t_inner_sphere;
+	end = ws_origin + ws_ray * t_outer_sphere;
+}
+ 
 float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raymarchOffset, out float intensity,out float depth) {
+	float3 sampleStart, sampleEnd;
+	find_atmosphere_intersections(startPos, dir, sampleStart, sampleEnd);
+
 	int sample_count = lerp(MAX_SAMPLE_COUNT, MIN_SAMPLE_COUNT, dir.y);	//dir.y ==0 means horizontal, use maximum sample count
-	float sample_step = 75;	//the last version use larger sample step when near horizontal, which causes weird "band"
+	float sample_step = length(sampleEnd - sampleStart) / sample_count;
 
-	//March ray to bottom of the atmosphere.
-	float3 earthCenter = float3(0, -earthRadius, 0);
-	float3 ominusc = startPos - earthCenter;
-	float toAtmosphereDistance;
-	if (startPos.y > CENTER - THICKNESS / 2) {		//TODO: correct this.
-		toAtmosphereDistance = 20.0;
-	}
-	else {
-		toAtmosphereDistance = -dot(dir, ominusc) + pow(pow(dot(dir, ominusc), 2) - dot(ominusc, ominusc) + pow(CENTER - THICKNESS / 2 + earthRadius, 2), 0.5);
-	}
-	depth = toAtmosphereDistance;	//TODO: Depth won't work when above cloud. this should be fixed.
-	startPos += dir * sample_step * floor(toAtmosphereDistance / sample_step);		//another fix for "band".
+	depth = length(sampleStart - startPos);
 
-	if (startPos.y < -50000) {
+	if (sampleStart.y < -50000) {
 		intensity = 0.0;
 		return 0.0;
 	}
@@ -221,7 +243,7 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 	float raymarchDistance = raymarchOffset * sample_step;
 	[loop]
 	for (int j = 0; j < sample_count; j++) {
-		float3 rayPos = startPos + dir * raymarchDistance;
+		float3 rayPos = sampleStart + dir * raymarchDistance;
 		if (!detailedSample) {
 			float sampleResult = SampleDensity(rayPos, 0, true);
 			if (sampleResult > 0) {
