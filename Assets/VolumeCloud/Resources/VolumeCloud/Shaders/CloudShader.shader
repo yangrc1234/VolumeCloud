@@ -26,6 +26,7 @@ Shader "Unlit/CloudShader"
 		_SilverIntensity("SilverIntensity",float) = .8
 		_SilverSpread("SilverSpread",float) = .75
 		_BlueNoise("BlueNoise",2D) = "gray" {}
+		_RaymarchOffset("RaymarchOffset", float) = 0.0
 		_AmbientColor("AmbientColor", Color) = (1,1,1,1)
 		_AtmosphereColor("AtmosphereColor" , Color) = (1,1,1,1)
 		_AtmosphereColorSaturateDistance("AtmosphereColorSaturateDistance", float) = 80000
@@ -55,6 +56,8 @@ Shader "Unlit/CloudShader"
 			sampler2D _BlueNoise;
 			sampler2D _CameraDepthTexture;
 			float4 _ProjectionExtents;
+			float _RaymarchOffset;
+
 			struct appdata
 			{
 				float4 vertex : POSITION;
@@ -95,7 +98,7 @@ Shader "Unlit/CloudShader"
 				float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
 				float intensity;
 				float depth;
-				float dentisy = GetDentisy(worldPos, viewDir, 100000, noiseSample,intensity,depth);
+				float dentisy = GetDentisy(worldPos, viewDir, 100000, fmod(_RaymarchOffset, 1.0),intensity,depth);
 				
 				/*RGBA: direct intensity, depth(this is differenct from the slide), ambient, alpha*/
 
@@ -200,7 +203,7 @@ Shader "Unlit/CloudShader"
 					float3 vspos = float3(i.vsray, 1.0) * depth;
 					half4 prevSample = SamplePrev(i.uv, vspos, outOfBound);
 
-					half correct = max(CurrentCorrect(i.uv, _Jitter) * 0.5, outOfBound);
+					half correct = max(CurrentCorrect(i.uv, _Jitter) * .75, outOfBound);
 				//	correct = 0;
 					return lerp(prevSample, result, correct);
 				}

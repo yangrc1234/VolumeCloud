@@ -2,7 +2,7 @@
 #define MIN_SAMPLE_COUNT 128
 #define MAX_SAMPLE_COUNT 128
 
-#define THICKNESS 6500.0
+#define THICKNESS 5000.0
 #define CENTER 4750.0
 
 #define EARTH_RADIUS 5000000.0
@@ -230,7 +230,7 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 
 	depth = length(sampleStart - startPos);
 
-	if (sampleStart.y < -50000) {
+	if (sampleStart.y < -200) {
 		intensity = 0.0;
 		return 0.0;
 	}

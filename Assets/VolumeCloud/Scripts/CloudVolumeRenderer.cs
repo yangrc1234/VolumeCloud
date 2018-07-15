@@ -18,29 +18,25 @@ using UnityEngine.Rendering;
     
     // The index of 4x4 pixels.
     private int frameIndex = 0;
+    private int haltonSequenceIndex = 0;
 
-    private static int[,] offset = new int[16, 2]; 
+    static int[,] offset = {
+                {2,1}, {1,2 }, {2,0}, {0,1},
+                {2,3}, {3,2}, {3,1}, {0,3},
+                {1,0}, {1,1}, {3,3}, {0,0},
+                {2,2}, {1,3}, {3,0}, {0,2}
+            };
 
-    private void OnEnable() {
-        SetupOffsets();
-    }
+    static int[,] bayerOffsets = {
+        {0,8,2,10 },
+        {12,4,14,6 },
+        {3,11,1,9 },
+        {15,7,13,5 }
+    };
 
-    void SetupOffsets() {
-        List<int> tempList = new List<int>();
-        for (int i = 0; i < 16; i++) {
-            tempList.Add(i);
-        }
-        var t = new System.Random(114514);
-        tempList = tempList.OrderBy(e => t.Next()).ToList();
-
-        for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < 4; j++) {
-                var index = tempList[i * 4 + j];
-                offset[index, 0] = i;
-                offset[index, 1] = j;
-            }
-        }
-    }
+    static int[] haltonSequence = {
+        8, 4, 12, 2, 10, 6, 14, 1
+    };
 
     void EnsureMaterial() {
         if (mat == null) {
@@ -80,6 +76,9 @@ using UnityEngine.Rendering;
         EnsureRenderTarget(ref lowresBuffer, width /4 , height/4, RenderTextureFormat.ARGBFloat, FilterMode.Bilinear);
 
         frameIndex = (frameIndex + 1)% 16;
+        if (frameIndex == 0) {
+            haltonSequenceIndex = (haltonSequenceIndex + 1) % haltonSequence.Length;
+        }
         fullBufferIndex = (fullBufferIndex + 1) % 2;
 
         /* Some code is from playdead TAA. */
@@ -89,6 +88,7 @@ using UnityEngine.Rendering;
         float offsetY = offset[frameIndex, 1];
         //GetProjectionExtents will offset the camera "window".
         mat.SetVector("_ProjectionExtents", mcam.GetProjectionExtents(offsetX * (1 << downSample), offsetY * (1 << downSample)));
+        mat.SetFloat("_RaymarchOffset", (haltonSequence[haltonSequenceIndex] / 16.0f + bayerOffsets[offset[frameIndex, 0], offset[frameIndex, 1]] / 16.0f));
         Graphics.Blit(null, lowresBuffer, mat, 0);
         
         //2. Blit low-res buffer with previous image to make full-res result.
