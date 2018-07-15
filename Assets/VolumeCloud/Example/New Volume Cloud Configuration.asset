@@ -13,21 +13,21 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   baseTile: 3
   detailTile: 48
-  detailStrength: 0.2
+  detailStrength: 0.15
   curlTile: 0.2
   curlStrength: 1
-  topOffset: 1000
+  topOffset: 1500
   overallDensity: 0.05
   cloudTypeModifier: 1
   cloudCoverageModifier: 1
   overallSize: 50000
   windDirection: {x: 1, y: 1}
   windSpeed: 60
-  beerLawStrength: 1600
+  beerLawStrength: 400
   silverIntensity: 0.8
   silverSpread: 0.7
   ambientColor: {r: 0.39608565, g: 0.5356938, b: 0.72794116, a: 0}
   atmosphereColor: {r: 0.4766436, g: 0.48061082, b: 0.5588235, a: 0}
   atmosphereSaturateDistance: 100000
-  weatherTex: {fileID: 2800000, guid: 419de397c006f894d8e0d1b6777bc0ad, type: 3}
+  weatherTex: {fileID: 2800000, guid: c73be893af46a1e4db152d42aacae768, type: 3}
   weatherTexSize: 50000

@@ -129,12 +129,12 @@ float SampleDensity(float3 worldPos,int lod, bool cheap) {
 	float3 unwindWorldPos = worldPos;
 	worldPos = ApplyWind(worldPos);
 	tempResult = tex3Dlod(_BaseTex, half4(worldPos / _CloudSize * _BaseTile, lod)).rgba;
-	float low_freq_fBm = (tempResult.g * 0.2) + (tempResult.b * 0.5) + (tempResult.a * 0.625);
+	tempResult = 1 - tempResult;
 
+	float low_freq_fBm = (tempResult.g * 0.5) + (tempResult.b * 0.25) + (tempResult.a * 0.125);
 	// define the base cloud shape by dilating it with the low frequency fBm made of Worley noise.
-	float sampleResult = tempResult.r;
-	sampleResult = Remap(tempResult.r, low_freq_fBm - 0.8, 1.0, 0.0, 1.0);
-	//sampleResult = tempResult.r;
+	float sampleResult = Remap(tempResult.r, -2.0 * low_freq_fBm, 1.0, 0.0, 1.0);
+	//float sampleResult = tempResult.r * .6 + low_freq_fBm;
 
 	half4 coverageSampleUV = half4((unwindWorldPos.xz / _WeatherTexSize), 0, 2.5);
 	coverageSampleUV.xy = (coverageSampleUV.xy + 0.5);	
@@ -200,7 +200,7 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 	float3 ominusc = startPos - earthCenter;
 	float toAtmosphereDistance;
 	if (startPos.y > CENTER - THICKNESS / 2) {		//TODO: correct this.
-		toAtmosphereDistance = 1.0;
+		toAtmosphereDistance = 20.0;
 	}
 	else {
 		toAtmosphereDistance = -dot(dir, ominusc) + pow(pow(dot(dir, ominusc), 2) - dot(ominusc, ominusc) + pow(CENTER - THICKNESS / 2 + earthRadius, 2), 0.5);
