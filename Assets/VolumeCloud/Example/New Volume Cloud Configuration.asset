@@ -11,23 +11,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: edad34612c85d2e4da1745df6c135220, type: 3}
   m_Name: New Volume Cloud Configuration
   m_EditorClassIdentifier: 
-  baseTile: 3
+  baseTile: 2
   detailTile: 48
   detailStrength: 0.2
   curlTile: 0.2
   curlStrength: 1
-  topOffset: 1000
+  topOffset: 0
   overallDensity: 0.1
   cloudTypeModifier: 1
   cloudCoverageModifier: 1
   overallSize: 50000
   windDirection: {x: 1, y: 1}
-  windSpeed: 0
+  windSpeed: 60
   beerLawStrength: 800
   silverIntensity: 0.8
   silverSpread: 0.7
-  ambientColor: {r: 0.39608565, g: 0.5356938, b: 0.72794116, a: 0}
+  ambientColor: {r: 0.59602076, g: 0.66698486, b: 0.7647059, a: 0}
   atmosphereColor: {r: 0.4766436, g: 0.48061082, b: 0.5588235, a: 0}
   atmosphereSaturateDistance: 100000
   weatherTex: {fileID: 2800000, guid: c73be893af46a1e4db152d42aacae768, type: 3}
-  weatherTexSize: 50000
+  weatherTexSize: 25000
