@@ -11,6 +11,10 @@
 #define CLOUDS_START (CENTER - THICKNESS/2)
 #define CLOUDS_END (CENTER + THICKNESS/2)
 
+#define TRANSMITTANCE_SAMPLE_STEP 512.0
+#define TRANSMITTANCE_SAMPLE_STEP_COUNT 6
+#define TRANSMITTANCE_SAMPLE_LENGTH (TRANSMITTANCE_SAMPLE_STEP_COUNT * TRANSMITTANCE_SAMPLE_STEP)
+
 //Base shape
 sampler3D _BaseTex;
 float _BaseTile;
@@ -35,6 +39,8 @@ float _CloudTypeModifier;
 half4 _WindDirection;
 sampler2D _WeatherTex;
 float _WeatherTexSize;
+
+float _Transmittance;
 
 //Lighting
 float _BeerLaw;
@@ -81,8 +87,7 @@ float HeightPercent(float3 worldPos) {
 
 //from gamedev post
 float SampleHeight(float heightPercent,float cloudType) {
-
-	return RemapClamped(heightPercent, 0.3, 1.0, 1.0, 0.5) * CalculateGradient(heightPercent, LerpGradient(cloudType));
+	return CalculateGradient(heightPercent, LerpGradient(cloudType)) * RemapClamped(heightPercent, .2, 1.0, 1.2, 0.75);
 }
 
 float3 ApplyWind(float3 worldPos) {
@@ -105,7 +110,7 @@ float HenryGreenstein(float g, float cosTheta) {
 }
 
 float BeerLaw(float d, float cosTheta) {
-	d *= _BeerLaw;
+	d *= TRANSMITTANCE_SAMPLE_LENGTH;
 	float firstIntes = exp(-d);
 	float secondIntens = exp(-d * 0.25) * 0.7;
 	float secondIntensCurve = .5;
@@ -116,10 +121,10 @@ float BeerLaw(float d, float cosTheta) {
 float Inscatter(float3 worldPos,float dl, float cosTheta) {
 	float heightPercent = HeightPercent(worldPos);
 	float lodded_density = saturate(SampleDensity(worldPos, 1, false));
-	float depth_probability = 0.05 + pow(lodded_density, RemapClamped(heightPercent, 0.3, 0.85, 0.5, 2.0));
-	depth_probability = lerp(depth_probability, 1.0, saturate(dl * 50));
+
+	float depth_probability = lerp(0.05 + pow(lodded_density, RemapClamped(heightPercent, 0.3, 0.95, 0.5, 1.3)), 1.0, saturate(dl));
 	float vertical_probability = pow(max(0, Remap(heightPercent, 0.0, 0.14, 0.1, 1.0)), 0.8);
-	return saturate(depth_probability * vertical_probability - 0.1);
+	return saturate(depth_probability * vertical_probability);
 }
 
 float Energy(float3 worldPos, float d, float cosTheta) {
@@ -134,15 +139,14 @@ float SampleDensity(float3 worldPos,int lod, bool cheap) {
 	float3 unwindWorldPos = worldPos;
 	worldPos = ApplyWind(worldPos);
 	tempResult = tex3Dlod(_BaseTex, half4(worldPos / _CloudSize * _BaseTile, lod)).rgba;
-	tempResult = 1 - tempResult;
+	tempResult.gba = 1 - tempResult.gba;
 
-	float low_freq_fBm = (tempResult.g * 0.5) + (tempResult.b * 0.25) + (tempResult.a * 0.125);
+	float low_freq_fBm = (tempResult.g * .625) + (tempResult.b * 0.25) + (tempResult.a * 0.125);
 	// define the base cloud shape by dilating it with the low frequency fBm made of Worley noise.
-	float perlin_adjusted = RemapClamped(tempResult.r, 0.0, 1.0, 0.0, 1.5);
-	float sampleResult = Remap(perlin_adjusted, -low_freq_fBm, 1.0, 0.0, 1.0);
-	//float sampleResult = tempResult.r * .6 + low_freq_fBm;
+	float perlin_adjusted = RemapClamped(tempResult.r, 0.0, 1.0, 0.0, 1.0);
+	float sampleResult = RemapClamped(perlin_adjusted, -low_freq_fBm, 1.0, 0.0, 1.0);
 
-	half4 coverageSampleUV = half4((unwindWorldPos.xz / _WeatherTexSize), 0, 1.0);
+	half4 coverageSampleUV = half4((unwindWorldPos.xz / _WeatherTexSize), 0, 2.5);
 	coverageSampleUV.xy = (coverageSampleUV.xy + 0.5);	
 	float3 weatherData = tex2Dlod(_WeatherTex, coverageSampleUV);
 	weatherData *= float3(_CloudCoverageModifier, 1.0, _CloudTypeModifier);
@@ -155,7 +159,6 @@ float SampleDensity(float3 worldPos,int lod, bool cheap) {
 	 
 	sampleResult *= coverage;
 
-	 
 	if (!cheap) {
 		float2 curl_noise = tex2Dlod(_CurlNoise, float4(unwindWorldPos.xz / _CloudSize * _CurlTile, 0.0, 1.0)).rg;
 		worldPos.xz += curl_noise.rg * (1.0 - heightPercent) * _CloudSize * _CurlStrength;
@@ -179,56 +182,84 @@ half rand(half3 co)
 }
 
 float SampleEnergy(float3 worldPos, float3 viewDir) {
-#define DETAIL_ENERGY_SAMPLE_COUNT 6
 
 	float totalSample = 0;
 	int mipmapOffset = 0.5;
-	float step = 1;
-	for (float i = 1; i <= DETAIL_ENERGY_SAMPLE_COUNT; i++) {
+	float step = 0.5;
+	for (float i = 1; i <= TRANSMITTANCE_SAMPLE_STEP_COUNT; i++) {
 		half3 rand3 = half3(rand(half3(0, i, 0)), rand(half3(1, i, 0)), rand(half3(0, i, 1)));
 		half3 direction = _WorldSpaceLightPos0 * 2 + normalize(rand3);
 		direction = normalize(direction);
 		float3 samplePoint = worldPos 
-			+ (direction * step / DETAIL_ENERGY_SAMPLE_COUNT) * 256.0;
+			+ (direction * step * TRANSMITTANCE_SAMPLE_STEP);
 		totalSample += SampleDensity(samplePoint, mipmapOffset, 0);
 		mipmapOffset += 0.5;
-		step *= 2;
+		step += 1;
 	}
-	float energy = Energy(worldPos ,totalSample / DETAIL_ENERGY_SAMPLE_COUNT * _CloudDensity, dot(viewDir, _WorldSpaceLightPos0));
+	float energy = Energy(worldPos , _Transmittance * totalSample / TRANSMITTANCE_SAMPLE_STEP_COUNT * _CloudDensity, dot(viewDir, _WorldSpaceLightPos0));
 	return energy;
 }
 
+
 //Code from https://area.autodesk.com/blogs/game-dev-blog/volumetric-clouds/.
-float2 ray_trace_sphere(float3 center, float3 rd, float3 offset, float radius) {
+bool ray_trace_sphere(float3 center, float3 rd, float3 offset, float radius, out float t1, out float t2) {
 	float3 p = center - offset;
 	float b = dot(p, rd);
 	float c = dot(p, p) - (radius * radius);
 
 	float f = b * b - c;
 	if (f >= 0.0) {
-		float t1 = -b - sqrt(f);
-		float t2 = -b + sqrt(f);
-		return float2(t1, t2);
+		t1 = -b - sqrt(f);
+		t2 = -b + sqrt(f);
+		return true;
 	}
-	return -1.0;
+	return false;
 }
-//same as above
-void find_atmosphere_intersections(float3 ws_origin, float3 ws_ray, out float3 start, out float3 end) {
-	float2 inner_solutions = ray_trace_sphere(ws_origin, ws_ray, EARTH_CENTER, EARTH_RADIUS + CLOUDS_START);
-	float2 outer_solutions = ray_trace_sphere(ws_origin, ws_ray, EARTH_CENTER, EARTH_RADIUS + CLOUDS_END);
-	float t_inner_sphere = max(inner_solutions.x, inner_solutions.y);
-	float t_outer_sphere = max(outer_solutions.x, outer_solutions.y);
 
-	start = ws_origin + ws_ray * t_inner_sphere;
-	end = ws_origin + ws_ray * t_outer_sphere;
+bool resolve_ray_start_end(float3 ws_origin, float3 ws_ray, out float3 start, out float3 end) {
+	//case includes on ground, inside atm, above atm.
+	float ot1, ot2, it1, it2;
+	bool outIntersected = ray_trace_sphere(ws_origin, ws_ray, EARTH_CENTER, EARTH_RADIUS + CLOUDS_END, ot1, ot2);
+	if (!outIntersected)
+		return false;	//you see nothing.
+
+	bool inIntersected = ray_trace_sphere(ws_origin, ws_ray, EARTH_CENTER, EARTH_RADIUS + CLOUDS_START, it1, it2);
+	
+	if (inIntersected) {
+		if (it1 < 0) {
+			//we're on ground.
+			start = ws_origin + max(it2, 0) * ws_ray;
+			end = ws_origin + ot2 * ws_ray;
+		}
+		else {
+			//we're inside atm, or above atm.
+			end = ws_origin + it1 * ws_ray;
+			if (ot1 < 0) {
+				//inside atm.
+				start = ws_origin;
+			}
+			else {
+				//above atm.
+				start = ws_origin + ot1 * ws_ray;
+			}
+		}
+	}
+	else {
+		end = ws_origin + ot2 * ws_ray;
+		start = ws_origin + max(ot1, 0) * ws_ray;
+	}
+	return true;
 }
  
 float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raymarchOffset, out float intensity,out float depth) {
 	float3 sampleStart, sampleEnd;
-	find_atmosphere_intersections(startPos, dir, sampleStart, sampleEnd);
+
+	if (!resolve_ray_start_end(startPos, dir, sampleStart, sampleEnd)) {
+		return 0;
+	}
 
 	int sample_count = lerp(MAX_SAMPLE_COUNT, MIN_SAMPLE_COUNT, dir.y);	//dir.y ==0 means horizontal, use maximum sample count
-	float sample_step = length(sampleEnd - sampleStart) / sample_count;
+	float sample_step = min(length(sampleEnd - sampleStart) / sample_count, 500);
 
 	depth = length(sampleStart - startPos);
 

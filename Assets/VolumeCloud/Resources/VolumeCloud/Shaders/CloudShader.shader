@@ -23,6 +23,7 @@ Shader "Unlit/CloudShader"
 		_WeatherTexSize("WeatherTexSize", float) = 25000
 		_WindDirection("WindDirection",Vector) = (1,1,0,0)
 		_BeerLaw("BeerLaw",float) = 1
+		_Transmittance("Transmittance", float) = 1
 		_SilverIntensity("SilverIntensity",float) = .8
 		_SilverSpread("SilverSpread",float) = .75
 		_BlueNoise("BlueNoise",2D) = "gray" {}

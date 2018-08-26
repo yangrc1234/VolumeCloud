@@ -25,6 +25,7 @@ public class VolumeCloudConfiguration : ScriptableObject {
     public float windSpeed;
     
     [Header("Lighting")]
+    public float transmittance;
     public float beerLawStrength;
     public float silverIntensity;
     public float silverSpread;
@@ -58,6 +59,7 @@ public class VolumeCloudConfiguration : ScriptableObject {
         public static int weatherTex = Shader.PropertyToID("_WeatherTex");
         public static int weatherTexSize = Shader.PropertyToID("_WeatherTexSize");
         public static int beerLaw = Shader.PropertyToID("_BeerLaw");
+        public static int transmittance = Shader.PropertyToID("_Transmittance");
         public static int silverIntensity = Shader.PropertyToID("_SilverIntensity");
         public static int silverSpread = Shader.PropertyToID("_SilverSpread");
 
@@ -82,6 +84,7 @@ public class VolumeCloudConfiguration : ScriptableObject {
         mat.SetTexture(PropertyHash.weatherTex, weatherTex);
         mat.SetFloat(PropertyHash.weatherTexSize, weatherTexSize);
         mat.SetFloat(PropertyHash.beerLaw, beerLawStrength);
+        mat.SetFloat(PropertyHash.transmittance, transmittance);
         mat.SetFloat(PropertyHash.silverIntensity, silverIntensity);
         mat.SetFloat(PropertyHash.silverSpread, silverSpread);
 
