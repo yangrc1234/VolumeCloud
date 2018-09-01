@@ -15,9 +15,9 @@ public class First3DTexGenerator : ITextureGenerator{
     public Color Sample(Vector3 pos) {
         Color res = new Color();
         res.r = PerlinNoiseGenerator.OctaveNoise(pos, channel1PerlinPeriod,perlinOctaves);
-        res.g = WorleyNoiseGenerator.OctaveNoise(pos, channel2WorleyPeriod, 1);
-        res.b = WorleyNoiseGenerator.OctaveNoise(pos, channel3WorleyPeriod, 1);
-        res.a = WorleyNoiseGenerator.OctaveNoise(pos, channel4WorleyPeriod, 1);
+        res.g = WorleyNoiseGenerator.OctaveNoise(pos, channel2WorleyPeriod, 3);
+        res.b = WorleyNoiseGenerator.OctaveNoise(pos, channel3WorleyPeriod, 3);
+        res.a = WorleyNoiseGenerator.OctaveNoise(pos, channel4WorleyPeriod, 3);
         return res;
     }
 }
@@ -30,9 +30,9 @@ public class Second3DTexGenerator : ITextureGenerator {
     public int channel3WorleyFreq = 64;
     public Color Noise(Vector3 pos) {
         Color res = new Color();
-        res.r = WorleyNoiseGenerator.OctaveNoise(pos, channel1WorleyFreq, 1);
-        res.g = WorleyNoiseGenerator.OctaveNoise(pos, channel2WorleyFreq, 1);
-        res.b = WorleyNoiseGenerator.OctaveNoise(pos, channel3WorleyFreq, 1);
+        res.r = WorleyNoiseGenerator.OctaveNoise(pos, channel1WorleyFreq, 3);
+        res.g = WorleyNoiseGenerator.OctaveNoise(pos, channel2WorleyFreq, 3);
+        res.b = WorleyNoiseGenerator.OctaveNoise(pos, channel3WorleyFreq, 3);
         res.a = 1.0f;
         return res;
     }

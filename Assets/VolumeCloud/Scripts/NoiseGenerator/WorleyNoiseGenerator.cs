@@ -36,7 +36,7 @@ public class WorleyNoiseGenerator : BaseNoiseGenerator {
                 }
             }
         }
-        return minDistance;
+        return 1.0f - minDistance;
     }
 
     public static float OctaveNoise(Vector3 pos, int period, int octaves, float persistence = 0.5f) {

@@ -22,7 +22,7 @@ MonoBehaviour:
   cloudCoverageModifier: 1
   overallSize: 50000
   windDirection: {x: 1, y: 1}
-  windSpeed: 60
+  windSpeed: 200
   transmittance: 0.1
   beerLawStrength: -2.22
   silverIntensity: 0.8

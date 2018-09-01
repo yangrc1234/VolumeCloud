@@ -15,7 +15,7 @@ using UnityEngine.Rendering;
     private RenderTexture lowresBuffer;
     private Matrix4x4 prevV;
     private Camera mcam;
-    
+     
     // The index of 4x4 pixels.
     private int frameIndex = 0;
     private int haltonSequenceIndex = 0;
@@ -38,8 +38,8 @@ using UnityEngine.Rendering;
         8, 4, 12, 2, 10, 6, 14, 1
     };
 
-    void EnsureMaterial() {
-        if (mat == null) {
+    void EnsureMaterial(bool force = false) {
+        if (mat == null || force) {
             var shader = Resources.Load<Shader>("VolumeCloud/Shaders/CloudShader");
             var baseTex = Resources.Load<Texture3D>("VolumeCloud/Textures/BaseNoise");
             var detailTex = Resources.Load<Texture3D>("VolumeCloud/Textures/DetailNoise");
@@ -54,6 +54,10 @@ using UnityEngine.Rendering;
     }
     [Range(0,2)]
     public int downSample = 1;
+
+    private void Start() {
+        this.EnsureMaterial(true);
+    }
 
     private void OnRenderImage(RenderTexture source, RenderTexture destination) {
         if (this.configuration == null) {

@@ -1,9 +1,11 @@
 #include "UnityCG.cginc"
+// Upgrade NOTE: excluded shader from DX11, OpenGL ES 2.0 because it uses unsized arrays
+#pragma exclude_renderers d3d11 gles
 #define MIN_SAMPLE_COUNT 128
 #define MAX_SAMPLE_COUNT 128
 
-#define THICKNESS 5000.0
-#define CENTER 4500.0
+#define THICKNESS 6000.0
+#define CENTER 5000.0
 
 #define EARTH_RADIUS 5000000.0
 #define EARTH_CENTER float3(0, -EARTH_RADIUS, 0)
@@ -59,23 +61,6 @@ float RemapClamped(float original_value, float original_min, float original_max,
 	return new_min + (saturate((original_value - original_min) / (original_max - original_min)) * (new_max - new_min));
 }
 
-float4 LerpGradient(float cloudType)
-{
-	float4 cloudGradient1 = float4(0, 0.07, 0.08, 0.15);
-	float4 cloudGradient2 = float4(0, 0.2, 0.42, 0.6);
-	float4 cloudGradient3 = float4(0, 0.08, 0.75, 1);
-
-	float a = 1.0f - saturate(cloudType / 0.5f);
-	float b = 1.0f - abs(cloudType - 0.5f) * 2.0f;
-	float c = saturate(cloudType - 0.5f) * 2.0f;
-
-	return cloudGradient1 * a + cloudGradient2 * b + cloudGradient3 * c;
-}
-
-float CalculateGradient(float a, float4 gradient)
-{
-	return smoothstep(gradient.x, gradient.y, a) - smoothstep(gradient.z, gradient.w, a); 
-}
 
 float HeightPercent(float3 worldPos) {
 	float sqrMag = worldPos.x * worldPos.x + worldPos.z * worldPos.z;
@@ -85,9 +70,30 @@ float HeightPercent(float3 worldPos) {
 	return saturate((worldPos.y + heightOffset - CENTER + THICKNESS / 2) / THICKNESS);
 }
 
+static float4 cloudGradients[] = {
+	float4(0, 0.07, 0.08, 0.15),
+	float4(0, 0.2, 0.42, 0.6),
+	float4(0, 0.08, 0.75, 1)
+};
 //from gamedev post
 float SampleHeight(float heightPercent,float cloudType) {
-	return CalculateGradient(heightPercent, LerpGradient(cloudType)) * RemapClamped(heightPercent, .2, 1.0, 1.2, 0.75);
+	float3 clouds;
+	[unroll]
+	for (int i = 0; i < 3; i++) {
+		clouds[i] =
+			RemapClamped(heightPercent, cloudGradients[i].x, cloudGradients[i].y, 0.0, 1.0)
+			* RemapClamped(heightPercent, cloudGradients[i].y, cloudGradients[i].z, 1.2, .7)
+			* RemapClamped(heightPercent, cloudGradients[i].z, cloudGradients[i].w, 1.0, 0.0);
+	}
+
+	float cloudTypeVal;
+	if (cloudType < 0.5) {
+		cloudTypeVal = lerp(clouds.x, clouds.y, cloudType*2.0);
+	}
+	else {
+		cloudTypeVal = lerp(clouds.y, clouds.z, (cloudType - 0.5)*2.0);
+	} 
+	return cloudTypeVal;
 }
 
 float3 ApplyWind(float3 worldPos) {
@@ -139,24 +145,25 @@ float SampleDensity(float3 worldPos,int lod, bool cheap) {
 	float3 unwindWorldPos = worldPos;
 	worldPos = ApplyWind(worldPos);
 	tempResult = tex3Dlod(_BaseTex, half4(worldPos / _CloudSize * _BaseTile, lod)).rgba;
-	tempResult.gba = 1 - tempResult.gba;
-
 	float low_freq_fBm = (tempResult.g * .625) + (tempResult.b * 0.25) + (tempResult.a * 0.125);
+
 	// define the base cloud shape by dilating it with the low frequency fBm made of Worley noise.
-	float perlin_adjusted = RemapClamped(tempResult.r, 0.0, 1.0, 0.0, 1.0);
-	float sampleResult = RemapClamped(perlin_adjusted, -low_freq_fBm, 1.0, 0.0, 1.0);
+	float sampleResult = RemapClamped(tempResult.r, 0.0, .8, .0, 1.0);
+	sampleResult = lerp(sampleResult, low_freq_fBm, .5);
+	sampleResult = RemapClamped(sampleResult, -low_freq_fBm, 1.0, 0.0, 1.0);
 
 	half4 coverageSampleUV = half4((unwindWorldPos.xz / _WeatherTexSize), 0, 2.5);
 	coverageSampleUV.xy = (coverageSampleUV.xy + 0.5);	
 	float3 weatherData = tex2Dlod(_WeatherTex, coverageSampleUV);
 	weatherData *= float3(_CloudCoverageModifier, 1.0, _CloudTypeModifier);
 	float coverage = weatherData.r;
-	sampleResult *= SampleHeight(heightPercent, weatherData.b);
+
+	float heightSample = SampleHeight(heightPercent, weatherData.b);
+	sampleResult *= heightSample;
 	//Anvil style.
 	//coverage = pow(coverage, RemapClamped(heightPercent, 0.7, 0.8, 1.0, lerp(1.0, 0.5, 1.0)));
 
 	sampleResult = RemapClamped(sampleResult, 1.0 - coverage, 1.0, 0.0, 1.0);	//different from slider.
-	 
 	sampleResult *= coverage;
 
 	if (!cheap) {
@@ -166,12 +173,11 @@ float SampleDensity(float3 worldPos,int lod, bool cheap) {
 		float3 tempResult2;
 		tempResult2 = tex3Dlod(_DetailTex, half4(worldPos / _CloudSize * _DetailTile, lod)).rgb;
 		float detailsampleResult = (tempResult2.r * 0.625) + (tempResult2.g * 0.25) + (tempResult2.b * 0.125);
-		detailsampleResult = 1.0 - detailsampleResult;
 		float detail_modifier = lerp(detailsampleResult, 1.0 - detailsampleResult, saturate(heightPercent * 1));
-		sampleResult = Remap(sampleResult, detail_modifier * _DetailStrength, 1.0, 0.0, 1.0);
+		sampleResult = RemapClamped(sampleResult, detail_modifier * _DetailStrength, 1.0, 0.0, 1.0);
 	}
 		
-	sampleResult *= Remap(weatherData.g, 0, 1, .2, 1.0);
+	sampleResult *= RemapClamped(weatherData.g, 0, 1, .2, 1.0);
 	
 	return max(0, sampleResult);
 }
@@ -255,6 +261,8 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 	float3 sampleStart, sampleEnd;
 
 	if (!resolve_ray_start_end(startPos, dir, sampleStart, sampleEnd)) {
+		intensity = 0.0;
+		depth = 1e6;
 		return 0;
 	}
 
