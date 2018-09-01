@@ -75,25 +75,20 @@ static float4 cloudGradients[] = {
 	float4(0, 0.2, 0.42, 0.6),
 	float4(0, 0.08, 0.75, 1)
 };
-//from gamedev post
-float SampleHeight(float heightPercent,float cloudType) {
-	float3 clouds;
-	[unroll]
-	for (int i = 0; i < 3; i++) {
-		clouds[i] =
-			RemapClamped(heightPercent, cloudGradients[i].x, cloudGradients[i].y, 0.0, 1.0)
-			* RemapClamped(heightPercent, cloudGradients[i].y, cloudGradients[i].z, 1.2, .7)
-			* RemapClamped(heightPercent, cloudGradients[i].z, cloudGradients[i].w, 1.0, 0.0);
-	}
 
+float SampleHeight(float heightPercent,float cloudType) {
+	float4 gradient;
 	float cloudTypeVal;
 	if (cloudType < 0.5) {
-		cloudTypeVal = lerp(clouds.x, clouds.y, cloudType*2.0);
+		gradient = lerp(cloudGradients[0], cloudGradients[1], cloudType*2.0);
 	}
 	else {
-		cloudTypeVal = lerp(clouds.y, clouds.z, (cloudType - 0.5)*2.0);
+		gradient = lerp(cloudGradients[1], cloudGradients[2], (cloudType - 0.5)*2.0);
 	} 
-	return cloudTypeVal;
+
+	return RemapClamped(heightPercent, gradient.x, gradient.y, 0.0, 1.0)
+			* RemapClamped(heightPercent, gradient.y, gradient.z, 1.2, .7)
+			* RemapClamped(heightPercent, gradient.z, gradient.w, 1.0, 0.0);
 }
 
 float3 ApplyWind(float3 worldPos) {

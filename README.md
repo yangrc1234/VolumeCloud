@@ -1,5 +1,5 @@
 # Volume Cloud for Unity3D
-This is an volume cloud rendering implementation for Unity3D using methods from Horizon:Zero Dawn.
+This is an volume cloud rendering implementation for Unity3D using methods from[1].
 ![](./Screenshots/1.png)
 
 ## Settings
@@ -24,9 +24,9 @@ When moving the camera, the reprojection quality is not good, and whole image be
 Add depth clipping stuff.
 
 ## References
-[The Real-time Volumetric Cloudscapes of Horizon: Zero Dawn](http://www.advances.realtimerendering.com/s2015/index.html)  
-[Nubis: Authoring Real-Time Volumetric Cloudscapes with the Decima Engine](http://www.advances.realtimerendering.com/s2017/index.html)  
-[TAA from playdead for reprojection code](https://github.com/playdeadgames/temporal)  
+[1][The Real-time Volumetric Cloudscapes of Horizon: Zero Dawn](http://www.advances.realtimerendering.com/s2015/index.html)  
+[2][Nubis: Authoring Real-Time Volumetric Cloudscapes with the Decima Engine](http://www.advances.realtimerendering.com/s2017/index.html)  
+[3][TAA from playdead for reprojection code](https://github.com/playdeadgames/temporal)  
 
 ## History.
 18/4/15 - Fixed "band" glitch.  
