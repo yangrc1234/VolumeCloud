@@ -61,7 +61,6 @@ float RemapClamped(float original_value, float original_min, float original_max,
 	return new_min + (saturate((original_value - original_min) / (original_max - original_min)) * (new_max - new_min));
 }
 
-
 float HeightPercent(float3 worldPos) {
 	float sqrMag = worldPos.x * worldPos.x + worldPos.z * worldPos.z;
 
@@ -125,7 +124,7 @@ float Inscatter(float3 worldPos,float dl, float cosTheta) {
 
 	float depth_probability = lerp(0.05 + pow(lodded_density, RemapClamped(heightPercent, 0.3, 0.95, 0.5, 1.3)), 1.0, saturate(dl));
 	float vertical_probability = pow(max(0, Remap(heightPercent, 0.0, 0.14, 0.1, 1.0)), 0.8);
-	return saturate(depth_probability * vertical_probability);
+	return saturate(depth_probability * vertical_probability + 0.1);
 }
 
 float Energy(float3 worldPos, float d, float cosTheta) {

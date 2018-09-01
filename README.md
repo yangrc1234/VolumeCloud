@@ -1,6 +1,6 @@
 # Volume Cloud for Unity3D
 This is an volume cloud rendering implementation for Unity3D using methods from[1].
-![](./Screenshots/1.png)
+![](./Screenshots/1.jpg)
 
 ## Settings
 This is a post-process effect. You need to add the script VolumeCloud to camera.  
