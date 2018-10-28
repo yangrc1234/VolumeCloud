@@ -17,13 +17,13 @@ The weather map tells the renderer infos about cloud. the first 3 channles are u
 For now there isn't an automatic way to generate a weather map, just paint it yourself, or use the one in example.  
 
 ### Height-Density Map
-You can assign a height-density map to a config. The texture shows the shape of different cloud type[4]. Channel R is density, and channel B is the "detailness"(see shape part). The x-axis of texture represents the cloud-type value, and y-axis is the height.  
+You can assign a height-density map to a config. The texture shows the shape of different cloud type[4]. Channel R is density, and channel B is the "detailness"(see shape evaluation part). The x-axis of texture represents the cloud-type value, and y-axis is the height.  
 
 ### Wind
 For now you can set a wind effect. The effect doesn't actually moves the weather map, but only moves the base texture offset, using the time value and wind speed value. So changing wind values during playing could cause problems for now.
 
 ## Implementation details.
-Most of the techniques are the same from the slides.  
+Most part are the same from the slides[1].  
 1. The rendering is a post-processing effect.  
 2. First a quarter-res buffer is rendered, including building the cloud shape and sample for light. (The result contains intensity, density and depth).  
 3. A history buffer is maintained, by blending history buffer(reprojected so to sample correctly) and the quarter-res buffer together to make new one.(quarter-res buffer is firstly shaded then blended with history buffer.)  
@@ -52,5 +52,5 @@ When moving the camera, the reprojection quality is not good, and whole image be
 
 ## History.
 18/4/15 - Fixed "band" glitch.  
-18/7/7 - Added low-resolution rendering.
+18/7/7 - Added low-resolution rendering.  
 18/10/28 - Added Height-Density map from [4]
