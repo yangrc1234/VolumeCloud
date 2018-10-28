@@ -6,29 +6,31 @@ using UnityEngine;
  * code from https://github.com/keijiro/PerlinNoise
  * changed to make the noise tilable.
  */
-[System.Serializable]
-public class PerlinNoiseGenerator : BaseNoiseGenerator {
-    public int octaves = 4;
-    public override float Noise(Vector3 pos) {
-        return OctaveNoise(pos, period,octaves);
-    }
 
-    static float Fade(float t) {
-        return t * t * t * (t * (t * 6 - 15) + 10);
-    }
+namespace Yangrc.VolumeCloud {
+    [System.Serializable]
+    public class PerlinNoiseGenerator : BaseNoiseGenerator {
+        public int octaves = 4;
+        public override float Noise(Vector3 pos) {
+            return OctaveNoise(pos, period, octaves);
+        }
 
-    static float Lerp(float t, float a, float b) {
-        return a + t * (b - a);
-    }
+        static float Fade(float t) {
+            return t * t * t * (t * (t * 6 - 15) + 10);
+        }
 
-    static float Grad(int hash, float x, float y, float z) {
-        var h = hash & 15;
-        var u = h < 8 ? x : y;
-        var v = h < 4 ? y : (h == 12 || h == 14 ? x : z);
-        return ((h & 1) == 0 ? u : -u) + ((h & 2) == 0 ? v : -v);
-    }
+        static float Lerp(float t, float a, float b) {
+            return a + t * (b - a);
+        }
 
-    static int[] perm = {
+        static float Grad(int hash, float x, float y, float z) {
+            var h = hash & 15;
+            var u = h < 8 ? x : y;
+            var v = h < 4 ? y : (h == 12 || h == 14 ? x : z);
+            return ((h & 1) == 0 ? u : -u) + ((h & 2) == 0 ? v : -v);
+        }
+
+        static int[] perm = {
         151,160,137,91,90,15,
         131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,
         190, 6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,
@@ -44,51 +46,52 @@ public class PerlinNoiseGenerator : BaseNoiseGenerator {
         138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180,
         151
     };
-    private static int wrap(int n, int period) {
-        n++;
-        return period > 0 ? n % period : n;
-    }
-
-    public static float Noise(Vector3 pos, int period) {
-        pos *= period;
-        var x = pos.x;
-        var y = pos.y;
-        var z = pos.z;
-        var X = Mathf.FloorToInt(x) & 0xff;
-        var Y = Mathf.FloorToInt(y) & 0xff;
-        var Z = Mathf.FloorToInt(z) & 0xff;
-        x -= Mathf.Floor(x);
-        y -= Mathf.Floor(y);
-        z -= Mathf.Floor(z);
-        var u = Fade(x);
-        var v = Fade(y);
-        var w = Fade(z);
-        var A = (perm[wrap(X,period)] + Y) & 0xff;
-        var B = (perm[wrap(X + 1,period)] + Y) & 0xff;
-        var AA = (perm[wrap(A,period)] + Z) & 0xff;
-        var BA = (perm[wrap(B,period)] + Z) & 0xff;
-        var AB = (perm[wrap(A + 1,period)] + Z) & 0xff;
-        var BB = (perm[wrap(B + 1,period)] + Z) & 0xff;
-        var result = Lerp(w, Lerp(v, Lerp(u, Grad(perm[AA], x, y, z), Grad(perm[BA], x - 1, y, z)),
-                               Lerp(u, Grad(perm[AB], x, y - 1, z), Grad(perm[BB], x - 1, y - 1, z))),
-                       Lerp(v, Lerp(u, Grad(perm[AA + 1], x, y, z - 1), Grad(perm[BA + 1], x - 1, y, z - 1)),
-                               Lerp(u, Grad(perm[AB + 1], x, y - 1, z - 1), Grad(perm[BB + 1], x - 1, y - 1, z - 1))));
-        return (result + 1.0f) / 2.0f;
-    }
-
-    public static float OctaveNoise(Vector3 pos, int period, int octaves, float persistence = 0.5f) {
-        float total = 0.0f;
-        float result = 0.0f;
-        float amp = .5f;
-        float freq = 1.0f;
-        for (int i = 0; i < octaves; i++) {
-            total += amp;
-            result += (Noise(pos, Mathf.RoundToInt(freq * period)) * 2.0f - 1.0f) * amp;
-            amp *= persistence;
-            freq *= 2.0f;
+        private static int wrap(int n, int period) {
+            n++;
+            return period > 0 ? n % period : n;
         }
-        if (octaves == 0)
-            return 0.0f;
-        return (result / total + 1.0f) / 2.0f;
+
+        public static float Noise(Vector3 pos, int period) {
+            pos *= period;
+            var x = pos.x;
+            var y = pos.y;
+            var z = pos.z;
+            var X = Mathf.FloorToInt(x) & 0xff;
+            var Y = Mathf.FloorToInt(y) & 0xff;
+            var Z = Mathf.FloorToInt(z) & 0xff;
+            x -= Mathf.Floor(x);
+            y -= Mathf.Floor(y);
+            z -= Mathf.Floor(z);
+            var u = Fade(x);
+            var v = Fade(y);
+            var w = Fade(z);
+            var A = (perm[wrap(X, period)] + Y) & 0xff;
+            var B = (perm[wrap(X + 1, period)] + Y) & 0xff;
+            var AA = (perm[wrap(A, period)] + Z) & 0xff;
+            var BA = (perm[wrap(B, period)] + Z) & 0xff;
+            var AB = (perm[wrap(A + 1, period)] + Z) & 0xff;
+            var BB = (perm[wrap(B + 1, period)] + Z) & 0xff;
+            var result = Lerp(w, Lerp(v, Lerp(u, Grad(perm[AA], x, y, z), Grad(perm[BA], x - 1, y, z)),
+                                   Lerp(u, Grad(perm[AB], x, y - 1, z), Grad(perm[BB], x - 1, y - 1, z))),
+                           Lerp(v, Lerp(u, Grad(perm[AA + 1], x, y, z - 1), Grad(perm[BA + 1], x - 1, y, z - 1)),
+                                   Lerp(u, Grad(perm[AB + 1], x, y - 1, z - 1), Grad(perm[BB + 1], x - 1, y - 1, z - 1))));
+            return (result + 1.0f) / 2.0f;
+        }
+
+        public static float OctaveNoise(Vector3 pos, int period, int octaves, float persistence = 0.5f) {
+            float total = 0.0f;
+            float result = 0.0f;
+            float amp = .5f;
+            float freq = 1.0f;
+            for (int i = 0; i < octaves; i++) {
+                total += amp;
+                result += (Noise(pos, Mathf.RoundToInt(freq * period)) * 2.0f - 1.0f) * amp;
+                amp *= persistence;
+                freq *= 2.0f;
+            }
+            if (octaves == 0)
+                return 0.0f;
+            return (result / total + 1.0f) / 2.0f;
+        }
     }
 }

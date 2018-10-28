@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public abstract class BaseNoiseGenerator : INoiseGenerator {
-    public int period = 16;
-    public abstract float Noise(Vector3 pos);
+namespace Yangrc.VolumeCloud {
+    public abstract class BaseNoiseGenerator : INoiseGenerator {
+        public int period = 16;
+        public abstract float Noise(Vector3 pos);
+    }
 }

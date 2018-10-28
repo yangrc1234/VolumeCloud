@@ -6,6 +6,7 @@ Shader "Unlit/CloudShader"
 	Properties
 	{
 		_MainTex("MainTex",2D) = "white"{}
+		_HeightDensity("HeightDensity", 2D) = "white"{}
 		_BaseTex("BaseTex", 3D) = "white" {}
 		_BaseTile("BaseTile", float) = 3.0
 		_DetailTex("Detail", 3D) = "white" {}
@@ -203,7 +204,7 @@ Shader "Unlit/CloudShader"
 					float3 vspos = float3(i.vsray, 1.0) * depth;
 					half4 prevSample = SamplePrev(i.uv, vspos, outOfBound);
 
-					half correct = max(CurrentCorrect(i.uv, _Jitter) * .75, outOfBound);
+					half correct = max(CurrentCorrect(i.uv, _Jitter) * .5, outOfBound);
 				//	correct = 0;
 					return lerp(prevSample, result, correct);
 				}

@@ -2,10 +2,10 @@
 // Upgrade NOTE: excluded shader from DX11, OpenGL ES 2.0 because it uses unsized arrays
 #pragma exclude_renderers d3d11 gles
 #define MIN_SAMPLE_COUNT 128
-#define MAX_SAMPLE_COUNT 128
+#define MAX_SAMPLE_COUNT 192
 
-#define THICKNESS 6000.0
-#define CENTER 5000.0
+#define THICKNESS 10000.0
+#define CENTER 6500.0
 
 #define EARTH_RADIUS 5000000.0
 #define EARTH_CENTER float3(0, -EARTH_RADIUS, 0)
@@ -20,6 +20,7 @@
 //Base shape
 sampler3D _BaseTex;
 float _BaseTile;
+sampler2D _HeightDensity;
 //Detal shape
 sampler3D _DetailTex;
 float _DetailTile;
@@ -86,7 +87,6 @@ float SampleHeight(float heightPercent,float cloudType) {
 	} 
 
 	return RemapClamped(heightPercent, gradient.x, gradient.y, 0.0, 1.0)
-			* RemapClamped(heightPercent, gradient.y, gradient.z, 1.2, .7)
 			* RemapClamped(heightPercent, gradient.z, gradient.w, 1.0, 0.0);
 }
 
@@ -123,41 +123,46 @@ float Inscatter(float3 worldPos,float dl, float cosTheta) {
 	float lodded_density = saturate(SampleDensity(worldPos, 1, false));
 
 	float depth_probability = lerp(0.05 + pow(lodded_density, RemapClamped(heightPercent, 0.3, 0.95, 0.5, 1.3)), 1.0, saturate(dl));
-	float vertical_probability = pow(max(0, Remap(heightPercent, 0.0, 0.14, 0.1, 1.0)), 0.8);
-	return saturate(depth_probability * vertical_probability + 0.1);
+	float vertical_probability = pow(max(0, Remap(heightPercent, 0.14, 0.28, 0.1, 1.0)), 0.8);
+	return saturate(depth_probability * vertical_probability);
 }
 
 float Energy(float3 worldPos, float d, float cosTheta) {
 	float hgImproved = max(HenryGreenstein(.1, cosTheta), _SilverIntensity * HenryGreenstein(0.99 - _SilverSpread, cosTheta));
-	return Inscatter(worldPos, d, cosTheta) * hgImproved * BeerLaw(d, cosTheta) * 5.0;
+	return hgImproved * (Inscatter(worldPos, d, cosTheta) + BeerLaw(d, cosTheta));
 }
 
 float SampleDensity(float3 worldPos,int lod, bool cheap) {
-
-	float heightPercent = HeightPercent(worldPos);
-	fixed4 tempResult;
+	//Store the pos without wind applied.
 	float3 unwindWorldPos = worldPos;
-	worldPos = ApplyWind(worldPos);
-	tempResult = tex3Dlod(_BaseTex, half4(worldPos / _CloudSize * _BaseTile, lod)).rgba;
-	float low_freq_fBm = (tempResult.g * .625) + (tempResult.b * 0.25) + (tempResult.a * 0.125);
-
-	// define the base cloud shape by dilating it with the low frequency fBm made of Worley noise.
-	float sampleResult = RemapClamped(tempResult.r, 0.0, .8, .0, 1.0);
-	sampleResult = lerp(sampleResult, low_freq_fBm, .5);
-	sampleResult = RemapClamped(sampleResult, -low_freq_fBm, 1.0, 0.0, 1.0);
-
+	
+	//Sample the weather map.
 	half4 coverageSampleUV = half4((unwindWorldPos.xz / _WeatherTexSize), 0, 2.5);
-	coverageSampleUV.xy = (coverageSampleUV.xy + 0.5);	
+	coverageSampleUV.xy = (coverageSampleUV.xy + 0.5);
 	float3 weatherData = tex2Dlod(_WeatherTex, coverageSampleUV);
 	weatherData *= float3(_CloudCoverageModifier, 1.0, _CloudTypeModifier);
 	float coverage = weatherData.r;
+	float cloudType = weatherData.b;
 
-	float heightSample = SampleHeight(heightPercent, weatherData.b);
-	sampleResult *= heightSample;
-	//Anvil style.
-	//coverage = pow(coverage, RemapClamped(heightPercent, 0.7, 0.8, 1.0, lerp(1.0, 0.5, 1.0)));
+	//Calculate the normalized height between[0,1]
+	float heightPercent = HeightPercent(worldPos);
 
-	sampleResult = RemapClamped(sampleResult, 1.0 - coverage, 1.0, 0.0, 1.0);	//different from slider.
+	//Sample base noise.
+	fixed4 tempResult;
+	worldPos = ApplyWind(worldPos);
+	tempResult = tex3Dlod(_BaseTex, half4(worldPos / _CloudSize * _BaseTile, lod)).rgba;
+	float low_freq_fBm = (tempResult.g * .625) + (tempResult.b * 0.25) + (tempResult.a * 0.125);
+	float sampleResult = RemapClamped(tempResult.r, 0.0, .8, .0, 1.0);
+	sampleResult = RemapClamped(sampleResult, -low_freq_fBm, 1.0, 0.0, 1.0);
+
+	//Sample Height-Density map.
+	float2 densityAndErodeness = tex2D(_HeightDensity, float2(cloudType, heightPercent)).rg;
+
+	//Multiply the result to density.
+	sampleResult *= densityAndErodeness.x;
+
+	//Clip the result using coverage map.
+	sampleResult = RemapClamped(sampleResult, 1.0 - coverage, 1.0, 0.0, 1.0);
 	sampleResult *= coverage;
 
 	if (!cheap) {
@@ -168,9 +173,10 @@ float SampleDensity(float3 worldPos,int lod, bool cheap) {
 		tempResult2 = tex3Dlod(_DetailTex, half4(worldPos / _CloudSize * _DetailTile, lod)).rgb;
 		float detailsampleResult = (tempResult2.r * 0.625) + (tempResult2.g * 0.25) + (tempResult2.b * 0.125);
 		float detail_modifier = lerp(detailsampleResult, 1.0 - detailsampleResult, saturate(heightPercent * 1));
-		sampleResult = RemapClamped(sampleResult, detail_modifier * _DetailStrength, 1.0, 0.0, 1.0);
+		sampleResult = RemapClamped(sampleResult, detail_modifier * _DetailStrength * (1.0 - densityAndErodeness.y), 1.0, 0.0, 1.0);
 	}
 		
+	//Multiply the overall density.
 	sampleResult *= RemapClamped(weatherData.g, 0, 1, .2, 1.0);
 	
 	return max(0, sampleResult);
@@ -270,6 +276,7 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 		return 0.0;
 	}
 
+	float intTransmittance = 1.0f;
 	float alpha = 0;
 	intensity = 0;
 	bool detailedSample = false;
@@ -283,12 +290,12 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 			float sampleResult = SampleDensity(rayPos, 0, true);
 			if (sampleResult > 0) {
 				detailedSample = true;
-				raymarchDistance -= sample_step * 3;
+				raymarchDistance -= sample_step * 2;
 				missedStepCount = 0;
 				continue;
 			}
 			else {
-				raymarchDistance += sample_step * 3;
+				raymarchDistance += sample_step * 2;
 			}
 		}
 		else {
