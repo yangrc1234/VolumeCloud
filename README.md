@@ -13,7 +13,7 @@ There're many paramters you can tweak in the config file. Most of the params are
 ![](./Pictures/config.png)  
 
 ### Weather map
-The weather map tells the renderer infos about cloud. the first 3 channles are used. R channel means cloud coverage. G channel means cloud density, and B channel means cloud type(basically, the higher it is, the taller cloud is). The coverage is different from density, since low density won't clip the cloud, but only makes it brighter.  
+The weather map tells the renderer infos about cloud. the first 3 channles are used. R channel means cloud coverage. G channel means cloud height, and B channel means cloud type(basically, the higher it is, the taller cloud is). 
 For now there isn't an automatic way to generate a weather map, just paint it yourself, or use the one in example.  
 
 ### Height-Density Map
@@ -30,7 +30,7 @@ Most part are the same from the slides[1].
 4. Blit the cloud image with final image.  
 
 ### How is shape evaluated  
-First of all, there're two types of noise texture(inside Resources folder), we call them base texture, which is larger, and detail texture, which is smaller and "shovels" the result of base texture, making the cloud looks more detailed.  
+First of all, there're two types of noise texture(inside Resources folder), name it base texture, and detail texture which is smaller, used for "shovel" the result of base texture, making the cloud looks more detailed.  
 During rendering, the base texture is sampled, and multiplied by the height-density map sampling result, then got clipped using coverage value.  
 Then the detail texture is used to erode the result from the last step.  
 After all these, the density value from weather map G channel is used to adjust final result.

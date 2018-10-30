@@ -146,6 +146,9 @@ float SampleDensity(float3 worldPos,int lod, bool cheap) {
 
 	//Calculate the normalized height between[0,1]
 	float heightPercent = HeightPercent(worldPos);
+	heightPercent = saturate(heightPercent - weatherData.g / 3);
+	if (heightPercent < 0.0001)
+		return 0.0;
 
 	//Sample base noise.
 	fixed4 tempResult;
@@ -172,12 +175,12 @@ float SampleDensity(float3 worldPos,int lod, bool cheap) {
 		float3 tempResult2;
 		tempResult2 = tex3Dlod(_DetailTex, half4(worldPos / _CloudSize * _DetailTile, lod)).rgb;
 		float detailsampleResult = (tempResult2.r * 0.625) + (tempResult2.g * 0.25) + (tempResult2.b * 0.125);
-		float detail_modifier = lerp(detailsampleResult, 1.0 - detailsampleResult, saturate(heightPercent * 1));
+		float detail_modifier = lerp(detailsampleResult, 1.0 - detailsampleResult, saturate(heightPercent));
 		sampleResult = RemapClamped(sampleResult, detail_modifier * _DetailStrength * (1.0 - densityAndErodeness.y), 1.0, 0.0, 1.0);
 	}
 		
 	//Multiply the overall density.
-	sampleResult *= RemapClamped(weatherData.g, 0, 1, .2, 1.0);
+	//sampleResult *= RemapClamped(weatherData.g, 0, 1, .2, 1.0);
 	
 	return max(0, sampleResult);
 }
