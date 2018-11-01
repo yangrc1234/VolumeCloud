@@ -146,7 +146,7 @@ float SampleDensity(float3 worldPos,int lod, bool cheap) {
 
 	//Calculate the normalized height between[0,1]
 	float heightPercent = HeightPercent(worldPos);
-	heightPercent = saturate(heightPercent - weatherData.g / 3);
+	heightPercent = saturate(heightPercent - weatherData.g / 2);
 	if (heightPercent < 0.0001)
 		return 0.0;
 
@@ -167,7 +167,7 @@ float SampleDensity(float3 worldPos,int lod, bool cheap) {
 	//Clip the result using coverage map.
 	sampleResult = RemapClamped(sampleResult, 1.0 - coverage, 1.0, 0.0, 1.0);
 	sampleResult *= coverage;
-
+	//sampleResult = pow(sampleResult, .8);
 	if (!cheap) {
 		float2 curl_noise = tex2Dlod(_CurlNoise, float4(unwindWorldPos.xz / _CloudSize * _CurlTile, 0.0, 1.0)).rg;
 		worldPos.xz += curl_noise.rg * (1.0 - heightPercent) * _CloudSize * _CurlStrength;
@@ -181,7 +181,8 @@ float SampleDensity(float3 worldPos,int lod, bool cheap) {
 		
 	//Multiply the overall density.
 	//sampleResult *= RemapClamped(weatherData.g, 0, 1, .2, 1.0);
-	
+
+	sampleResult = pow(sampleResult, 1.2);
 	return max(0, sampleResult);
 }
 

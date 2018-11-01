@@ -15,7 +15,7 @@ namespace Yangrc.VolumeCloud {
         [Header("Shape - Detail")]
         [Range(0, 80)]
         public float detailTile = 36.0f;
-        [Range(0, 1)]
+        [Range(0, 3)]
         public float detailStrength = 1.0f;
 
         [Header("Shape - Curl")]
