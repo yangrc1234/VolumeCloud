@@ -4,8 +4,8 @@
 #define MIN_SAMPLE_COUNT 128
 #define MAX_SAMPLE_COUNT 192
 
-#define THICKNESS 10000.0
-#define CENTER 6500.0
+#define THICKNESS 6000.0
+#define CENTER 4500.0
 
 #define EARTH_RADIUS 5000000.0
 #define EARTH_CENTER float3(0, -EARTH_RADIUS, 0)
@@ -146,7 +146,7 @@ float SampleDensity(float3 worldPos,int lod, bool cheap) {
 
 	//Calculate the normalized height between[0,1]
 	float heightPercent = HeightPercent(worldPos);
-	heightPercent = saturate(heightPercent - weatherData.g / 2);
+	heightPercent = saturate(heightPercent - weatherData.g / 5);	//Don't lift cloud too much, it looks silly.
 	if (heightPercent < 0.0001)
 		return 0.0;
 
@@ -178,9 +178,6 @@ float SampleDensity(float3 worldPos,int lod, bool cheap) {
 		float detail_modifier = lerp(detailsampleResult, 1.0 - detailsampleResult, saturate(heightPercent));
 		sampleResult = RemapClamped(sampleResult, detail_modifier * _DetailStrength * (1.0 - densityAndErodeness.y), 1.0, 0.0, 1.0);
 	}
-		
-	//Multiply the overall density.
-	//sampleResult *= RemapClamped(weatherData.g, 0, 1, .2, 1.0);
 
 	sampleResult = pow(sampleResult, 1.2);
 	return max(0, sampleResult);
@@ -314,9 +311,11 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 				float sampledAlpha = sampleResult * sample_step * _CloudDensity;
 				float sampledEnergy = SampleEnergy(rayPos, dir);
 				intensity += (1 - alpha) * sampledEnergy * sampledAlpha;
+				depth += (1-alpha) * raymarchDistance * sampledAlpha;
 				alpha += (1 - alpha) * sampledAlpha;
 				if (alpha > 1) {
 					intensity /= alpha;
+					depth /= alpha;
 					return 1;
 				}
 			}

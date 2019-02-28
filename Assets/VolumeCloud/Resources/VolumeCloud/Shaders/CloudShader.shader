@@ -157,18 +157,16 @@ Shader "Unlit/CloudShader"
 					float4 wspos = mul(unity_CameraToWorld,float4(vspos,1.0));
 					float4 prevUV = mul(_PrevVP, wspos);
 					prevUV.xy = 0.5 * (prevUV.xy / prevUV.w) + 0.5;
-					half4 prevSample = tex2D(_MainTex, prevUV.xy);
-
 					half oobmax = max(0.0 - prevUV.x,0.0 - prevUV.y);
 					half oobmin = max(prevUV.x - 1.0, prevUV.y - 1.0);
 					outOfBound = step(0,max(oobmin, oobmax));
-
+					half4 prevSample = tex2Dlod(_MainTex, float4(prevUV.xy, 0, 0));
 					return prevSample;
 				}
 
 				float4 SampleCurrent(float2 uv) {
 					uv = uv - (_Jitter - 1.5) * _MainTex_TexelSize.xy;
-					float4 currSample = tex2D(_LowresCloudTex, uv);
+					float4 currSample = tex2Dlod(_LowresCloudTex, float4(uv, 0, 0));
 					return currSample;
 				}
 
@@ -204,8 +202,9 @@ Shader "Unlit/CloudShader"
 					float3 vspos = float3(i.vsray, 1.0) * depth;
 					half4 prevSample = SamplePrev(i.uv, vspos, outOfBound);
 
-					half correct = max(CurrentCorrect(i.uv, _Jitter) * .5, outOfBound);
-				//	correct = 0;
+					//Correct means the how believable the low-res buffer is.
+					//On points the low-res buffer hit, or can't find from previous full frame correct, will be 1.0
+					half correct = max(.2 * CurrentCorrect(i.uv, _Jitter), outOfBound);
 					return lerp(prevSample, result, correct);
 				}
 				ENDCG
