@@ -23,7 +23,6 @@ Shader "Unlit/CloudShader"
 		_WeatherTex("WeatherTex", 2D) = "white" {}
 		_WeatherTexSize("WeatherTexSize", float) = 25000
 		_WindDirection("WindDirection",Vector) = (1,1,0,0)
-		_Transmittance("Transmittance", float) = 1
 		_SilverIntensity("SilverIntensity",float) = .8
 		_SilverSpread("SilverSpread",float) = .75
 		_BlueNoise("BlueNoise",2D) = "gray" {}
@@ -34,6 +33,7 @@ Shader "Unlit/CloudShader"
 	}
 		SubShader
 		{
+			Cull Off ZWrite Off ZTest Always
 			Tags {
 				"RenderType" = "Transparent"
 				"Queue" = "Transparent"
@@ -99,18 +99,17 @@ Shader "Unlit/CloudShader"
 				float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
 				float intensity;
 				float depth;
-				float dentisy = GetDentisy(worldPos, viewDir, 100000, fmod(_RaymarchOffset, 1.0),intensity,depth);
+				float density = GetDentisy(worldPos, viewDir, 100000, fmod(_RaymarchOffset, 1.0), intensity, depth);
 				
 				/*RGBA: direct intensity, depth(this is differenct from the slide), ambient, alpha*/
 
-				return float4(intensity, depth, /*ambient haven't implemented yet */1, dentisy);
+				return float4(intensity, depth, /*ambient haven't implemented yet */1, density);
 			}
 			ENDCG
 		}
 
 			//Blend low-res buffer with previmage to make final cloud image.
 			Pass{
-				Cull Off ZWrite Off ZTest Always
 				CGPROGRAM
 				#pragma vertex vert
 				#pragma fragment frag
@@ -252,7 +251,7 @@ Shader "Unlit/CloudShader"
 					float depthValue = LinearEyeDepth(tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(i.screenPos)).r);
 					//only if depthValue is nearly at the far clip plane, we use cloud.
 					if (depthValue > _ProjectionParams.z - 100) {
-						return half4(mcol.rgb * (1 - col.a) + col.rgb, 1);
+						return half4(mcol.rgb * (1 - col.a) + col.rgb * col.a, 1);
 					}
 					return mcol;
 				}
