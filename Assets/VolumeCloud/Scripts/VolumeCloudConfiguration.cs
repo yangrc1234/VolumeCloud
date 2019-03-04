@@ -38,11 +38,19 @@ namespace Yangrc.VolumeCloud {
 
         [Header("Lighting")]
         public Color ambientColor = new Color(214, 37, 154);
-        [Range(0.0f, 1.0f)]
-        public float transmittance = 0.2f;
+        public const float COEFFICIENT_SCALE = 1e-2f;
+        [Range(0.1f, 10)]
+        public float scatteringCoefficient = 4f;
+        [Range(0.1f, 10)]
+        public float extinctionCoefficient = 4f;
+        [Range(0.01f, 1)]
+        public float multiScatteringA = 4f;
+        [Range(0.01f, 1)]
+        public float multiScatteringB = 4f;
+        [Range(0.01f, 1)]
+        public float multiScatteringC = 4f;
 
         [Header("Lighting - Silver")]
-        public float silverIntensity = 0.8f;
         public float silverSpread = 0.7f;
 
         [Header("Lighting - Atmosphere")]
@@ -74,8 +82,11 @@ namespace Yangrc.VolumeCloud {
             public static int windDirection = Shader.PropertyToID("_WindDirection");
             public static int weatherTex = Shader.PropertyToID("_WeatherTex");
             public static int weatherTexSize = Shader.PropertyToID("_WeatherTexSize");
-            public static int transmittance = Shader.PropertyToID("_Transmittance");
-            public static int silverIntensity = Shader.PropertyToID("_SilverIntensity");
+            public static int scatteringCoefficient = Shader.PropertyToID("_ScatteringCoefficient");
+            public static int extinctionCoefficient = Shader.PropertyToID("_ExtinctionCoefficient");
+            public static int multiScatteringA = Shader.PropertyToID("_MultiScatteringA");
+            public static int multiScatteringB = Shader.PropertyToID("_MultiScatteringB");
+            public static int multiScatteringC = Shader.PropertyToID("_MultiScatteringC");
             public static int silverSpread = Shader.PropertyToID("_SilverSpread");
 
             public static int atmosphereColor = Shader.PropertyToID("_AtmosphereColor");
@@ -99,8 +110,11 @@ namespace Yangrc.VolumeCloud {
             mat.SetVector(PropertyHash.windDirection, new Vector4(windDirection.x, windDirection.y, windSpeed, -windSpeed));
             mat.SetTexture(PropertyHash.weatherTex, weatherTex);
             mat.SetFloat(PropertyHash.weatherTexSize, weatherTexSize);
-            mat.SetFloat(PropertyHash.transmittance, transmittance);
-            mat.SetFloat(PropertyHash.silverIntensity, silverIntensity);
+            mat.SetFloat(PropertyHash.scatteringCoefficient, scatteringCoefficient * COEFFICIENT_SCALE);
+            mat.SetFloat(PropertyHash.extinctionCoefficient, extinctionCoefficient * COEFFICIENT_SCALE);
+            mat.SetFloat(PropertyHash.multiScatteringA, multiScatteringA );
+            mat.SetFloat(PropertyHash.multiScatteringB, multiScatteringB );
+            mat.SetFloat(PropertyHash.multiScatteringC, multiScatteringC );
             mat.SetFloat(PropertyHash.silverSpread, silverSpread);
 
             mat.SetColor(PropertyHash.atmosphereColor, atmosphereColor);

@@ -15,10 +15,8 @@
 
 #define TRANSMITTANCE_SAMPLE_STEP 512.0
 #define TRANSMITTANCE_SAMPLE_STEP_COUNT 6
-#define TRANSMITTANCE_SAMPLE_LENGTH (TRANSMITTANCE_SAMPLE_STEP_COUNT * TRANSMITTANCE_SAMPLE_STEP)
+//#define TRANSMITTANCE_SAMPLE_LENGTH (TRANSMITTANCE_SAMPLE_STEP_COUNT * TRANSMITTANCE_SAMPLE_STEP)
 
-#define _ScatteringCoefficient 4e-2
-#define _ExtinctionCoefficient 4e-2
 
 //Base shape
 sampler3D _BaseTex;
@@ -47,6 +45,8 @@ sampler2D _WeatherTex;
 float _WeatherTexSize;
 
 //Lighting
+float _ScatteringCoefficient;
+float _ExtinctionCoefficient;
 float _SilverIntensity;
 float _SilverSpread;
 
@@ -109,29 +109,6 @@ float HenryGreenstein(float g, float cosTheta) {
 	return pif * numerator / denominator;
 }
 
-//float BeerLaw(float d, float cosTheta) {
-//	d *= TRANSMITTANCE_SAMPLE_LENGTH;
-//	float firstIntes = exp(-d);
-//	float secondIntens = exp(-d * 0.25) * 0.7;
-//	float secondIntensCurve = .5;
-//	float tmp = max(firstIntes, secondIntens * RemapClamped(cosTheta, 0.7, 1.0, secondIntensCurve, secondIntensCurve * 0.25));
-//	return tmp;
-//}
-//  
-//float Inscatter(float3 worldPos,float dl, float cosTheta) {
-//	float heightPercent = HeightPercent(worldPos);
-//	float lodded_density = saturate(SampleDensity(worldPos, 1, false));
-//
-//	float depth_probability = lerp(0.05 + pow(lodded_density, RemapClamped(heightPercent, 0.3, 0.95, 0.5, 1.3)), 1.0, saturate(dl));
-//	float vertical_probability = pow(max(0, Remap(heightPercent, 0.14, 0.28, 0.1, 1.0)), 0.8);
-//	return saturate(depth_probability * vertical_probability);
-//}
-
-//float Energy(float3 worldPos, float d, float cosTheta) {
-//	float hgImproved = max(HenryGreenstein(.1, cosTheta), _SilverIntensity * HenryGreenstein(0.99 - _SilverSpread, cosTheta));
-//	return hgImproved * (Inscatter(worldPos, d, cosTheta) + BeerLaw(d, cosTheta));
-//}
-
 float SampleDensity(float3 worldPos,int lod, bool cheap) {
 	//Store the pos without wind applied.
 	float3 unwindWorldPos = worldPos;
@@ -188,18 +165,22 @@ half rand(half3 co)
 	return frac(sin(dot(co.xyz, half3(12.9898, 78.233, 45.5432))) * 43758.5453) - 0.5f;
 }
 
-float SampleEnergy(float3 worldPos, float3 viewDir) {
+float _MultiScatteringA;
+float _MultiScatteringB;
+float _MultiScatteringC;
 
-	float totalSample = 0;
+float fastAcos(float x) {
+	return (-0.69813170079773212f * x * x - 0.87266462599716477f) * x + 1.5707963267948966f;
+}
+
+float SampleOpticsDistanceToSun(float3 worldPos) {
 	int mipmapOffset = 0.5;
 	float step = 0.5;
 	//float transmittance = 1.0f;
 	float opticsDistance = 0.0f;
 	for (float i = 1; i <= TRANSMITTANCE_SAMPLE_STEP_COUNT; i++) {
-		half3 rand3 = half3(rand(half3(0, i, 0)), rand(half3(1, i, 0)), rand(half3(0, i, 1)));
-		half3 direction = _WorldSpaceLightPos0 * 2 + normalize(rand3);
-		direction = normalize(direction);
-		float3 samplePoint = worldPos 
+		half3 direction = _WorldSpaceLightPos0;
+		float3 samplePoint = worldPos
 			+ (direction * step * TRANSMITTANCE_SAMPLE_STEP);
 		float sampleResult = SampleDensity(samplePoint, mipmapOffset, 0);;
 		//transmittance *= exp(-sampleResult * TRANSMITTANCE_SAMPLE_STEP) ;
@@ -208,15 +189,22 @@ float SampleEnergy(float3 worldPos, float3 viewDir) {
 		mipmapOffset += 0.5;
 		step += 1;
 	}
-
-	float transmittance = exp(-_ExtinctionCoefficient * opticsDistance);
-	float cosTheta = dot(viewDir, _WorldSpaceLightPos0);
-	float phase = max(HenryGreenstein(.1, cosTheta), _SilverIntensity * HenryGreenstein(0.99 - _SilverSpread, cosTheta));
-	return phase * transmittance * _ScatteringCoefficient;
-	//float energy = Energy(worldPos , _Transmittance * totalSample / TRANSMITTANCE_SAMPLE_STEP_COUNT * _CloudDensity, dot(viewDir, _WorldSpaceLightPos0));
-	//return energy;
+	return opticsDistance;
 }
 
+float SampleEnergy(float3 worldPos, float3 viewDir) {
+	float opticsDistance = SampleOpticsDistanceToSun(worldPos);
+	float result = 0.0f;
+	[unroll]
+	for (int octaveIndex = 0; octaveIndex < 3; octaveIndex++) {
+		float transmittance = exp(-_ExtinctionCoefficient * pow(_MultiScatteringB, octaveIndex) * opticsDistance);
+		float cosTheta = dot(viewDir, _WorldSpaceLightPos0);
+		float ecMult = pow(_MultiScatteringC, octaveIndex);
+		float phase = lerp(HenryGreenstein(.1f * ecMult, cosTheta), HenryGreenstein((0.99 - _SilverSpread) * ecMult, cosTheta), 0.5f);
+		result += phase * transmittance * _ScatteringCoefficient * pow(_MultiScatteringA, octaveIndex);
+	}
+	return result;
+}
 
 //Code from https://area.autodesk.com/blogs/game-dev-blog/volumetric-clouds/.
 bool ray_trace_sphere(float3 center, float3 rd, float3 offset, float radius, out float t1, out float t2) {
