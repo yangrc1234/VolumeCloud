@@ -3,7 +3,7 @@
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 0}
   m_Enabled: 1
@@ -25,8 +25,11 @@ MonoBehaviour:
   windDirection: {x: 1, y: 1}
   windSpeed: 200
   ambientColor: {r: 0.51432353, g: 0.55162877, b: 0.603, a: 0}
-  transmittance: 0.213
-  silverIntensity: 0.8
+  scatteringCoefficient: 0.4
+  extinctionCoefficient: 0.42
+  multiScatteringScattering: 0.5
+  multiScatteringExtinction: 0.5
+  multiScatteringEC: 0.5
   silverSpread: 0.7
   atmosphereColor: {r: 0.4766436, g: 0.48061082, b: 0.5588235, a: 0}
   atmosphereSaturateDistance: 100000
