@@ -182,10 +182,8 @@ float SampleOpticsDistanceToSun(float3 worldPos) {
 		half3 direction = _WorldSpaceLightPos0;
 		float3 samplePoint = worldPos
 			+ (direction * step * TRANSMITTANCE_SAMPLE_STEP);
-		float sampleResult = SampleDensity(samplePoint, mipmapOffset, 0);;
-		//transmittance *= exp(-sampleResult * TRANSMITTANCE_SAMPLE_STEP) ;
+		float sampleResult = SampleDensity(samplePoint, mipmapOffset, true);
 		opticsDistance += TRANSMITTANCE_SAMPLE_STEP * sampleResult;
-		//totalSample += SampleDensity(samplePoint, mipmapOffset, 0);
 		mipmapOffset += 0.5;
 		step += 1;
 	}
