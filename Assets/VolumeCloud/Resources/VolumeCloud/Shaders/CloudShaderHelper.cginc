@@ -280,7 +280,8 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 	int sample_count = lerp(MAX_SAMPLE_COUNT, MIN_SAMPLE_COUNT, dir.y);	//dir.y ==0 means horizontal, use maximum sample count
 	float sample_step = min(length(sampleEnd - sampleStart) / sample_count, 500);
 
-	depth = length(sampleStart - startPos);
+	//depth = length(sampleStart - startPos);
+	depth = 0.0f;
 
 	if (sampleStart.y < -200) {
 		intensity = 0.0;
@@ -292,6 +293,8 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 	intensity = 0;
 	bool detailedSample = false;
 	int missedStepCount = 0;
+
+	float transmittanceSum = 0.00001f;
 
 	float raymarchDistance = raymarchOffset * sample_step;
 	[loop]
@@ -332,7 +335,8 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 				intTransmittance *= transmittance;
 
 				//intensity += (1 - alpha) * sampledEnergy * sampledAlpha;
-				depth += intTransmittance * raymarchDistance * density;
+				depth += transmittance * length(rayPos - startPos);
+				transmittanceSum += transmittance;
 				//alpha += (1 - alpha) * sampledAlpha;
 
 				//if (alpha > 1) {
@@ -343,6 +347,10 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 			}
 			raymarchDistance += sample_step;
 		}
+	}
+	depth /= transmittanceSum;
+	if (depth == 0.0f) {
+		depth = length(sampleStart - startPos);
 	}
 	return 1.0f - intTransmittance;
 }

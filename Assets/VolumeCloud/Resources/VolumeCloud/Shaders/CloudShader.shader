@@ -103,6 +103,7 @@ Shader "Unlit/CloudShader"
 				
 				/*RGBA: direct intensity, depth(this is differenct from the slide), ambient, alpha*/
 
+				//return depth / 10000.0f;
 				return float4(intensity, depth, /*ambient haven't implemented yet */1, density);
 			}
 			ENDCG
@@ -204,6 +205,8 @@ Shader "Unlit/CloudShader"
 					//Correct means the how believable the low-res buffer is.
 					//On points the low-res buffer hit, or can't find from previous full frame correct, will be 1.0
 					half correct = max(.2 * CurrentCorrect(i.uv, _Jitter), outOfBound);
+
+
 					return lerp(prevSample, result, correct);
 				}
 				ENDCG
