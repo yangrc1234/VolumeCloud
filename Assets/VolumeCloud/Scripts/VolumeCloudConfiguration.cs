@@ -44,11 +44,14 @@ namespace Yangrc.VolumeCloud {
         [Range(0.1f, 10)]
         public float extinctionCoefficient = 4f;
         [Range(0.01f, 1)]
-        public float multiScatteringA = 4f;
+        [Tooltip("Value used in multi-scattering approximation, higher causes more light be scattered. Must be lower than multiScatteringExtinction.")]
+        public float multiScatteringScattering = .5f;
         [Range(0.01f, 1)]
-        public float multiScatteringB = 4f;
+        [Tooltip("Value used in multi-scattering approximation, higher causes more light be extincted. Must be higher than multiScatteringScattering.")]
+        public float multiScatteringExtinction = .5f;
         [Range(0.01f, 1)]
-        public float multiScatteringC = 4f;
+        [Tooltip("Value used in multi-scattering approximation, phase function is p(g * pow(multiScatteringEC, octave), theta)")]
+        public float multiScatteringEC = .5f;
 
         [Header("Lighting - Silver")]
         public float silverSpread = 0.7f;
@@ -112,9 +115,9 @@ namespace Yangrc.VolumeCloud {
             mat.SetFloat(PropertyHash.weatherTexSize, weatherTexSize);
             mat.SetFloat(PropertyHash.scatteringCoefficient, scatteringCoefficient * COEFFICIENT_SCALE);
             mat.SetFloat(PropertyHash.extinctionCoefficient, extinctionCoefficient * COEFFICIENT_SCALE);
-            mat.SetFloat(PropertyHash.multiScatteringA, multiScatteringA );
-            mat.SetFloat(PropertyHash.multiScatteringB, multiScatteringB );
-            mat.SetFloat(PropertyHash.multiScatteringC, multiScatteringC );
+            mat.SetFloat(PropertyHash.multiScatteringA, multiScatteringScattering );
+            mat.SetFloat(PropertyHash.multiScatteringB, multiScatteringExtinction );
+            mat.SetFloat(PropertyHash.multiScatteringC, multiScatteringEC );
             mat.SetFloat(PropertyHash.silverSpread, silverSpread);
 
             mat.SetColor(PropertyHash.atmosphereColor, atmosphereColor);
