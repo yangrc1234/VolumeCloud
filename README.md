@@ -37,7 +37,6 @@ After all these, the density value from weather map G channel is used to adjust 
 
 ## Known issues 
 Cloud can only be rendered behind objects. This is not resolved in the original presentation either.  
-When moving the camera, the reprojection quality is not good, and whole image become blurred, the rendering process become very visible(especially when downsampled).  
 
 ## TODO
 - [ ] Make the noise generator usable.
@@ -54,3 +53,5 @@ When moving the camera, the reprojection quality is not good, and whole image be
 18/4/15 - Fixed "band" glitch.  
 18/7/7 - Added low-resolution rendering.  
 18/10/28 - Added Height-Density map from [4]
+19/3/2 - Added depth estimation stuff, reduced blur problem when rotating camera.
+19/3/4 - Rewrite lighting code, using methods from [4], it should be very "physically based" now.
