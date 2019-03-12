@@ -43,6 +43,8 @@ namespace Yangrc.VolumeCloud {
         public float scatteringCoefficient = 4f;
         [Range(0.1f, 10)]
         public float extinctionCoefficient = 4f;
+
+        [Header("Lighting - Multi Scattering Approximation")]
         [Range(0.01f, 1)]
         [Tooltip("Value used in multi-scattering approximation, higher causes more light be scattered. Must be lower than multiScatteringExtinction.")]
         public float multiScatteringScattering = .5f;

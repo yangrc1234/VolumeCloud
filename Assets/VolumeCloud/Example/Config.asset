@@ -17,17 +17,20 @@ MonoBehaviour:
   topOffset: 0
   detailTile: 36
   detailStrength: 1
-  curlTile: 0.44
+  curlTile: 0.4
   curlStrength: 1
   overallDensity: 1
   cloudTypeModifier: 1
   cloudCoverageModifier: 1
   windDirection: {x: 1, y: 1}
-  windSpeed: 200
-  ambientColor: {r: 0.51432353, g: 0.55162877, b: 0.603, a: 0}
-  transmittance: 0.213
-  silverIntensity: 0.8
-  silverSpread: 0.7
+  windSpeed: 20
+  ambientColor: {r: 0.8679245, g: 0.8474546, b: 0.8474546, a: 0.02745098}
+  scatteringCoefficient: 0.2
+  extinctionCoefficient: 0.22
+  multiScatteringScattering: 0.5
+  multiScatteringExtinction: 0.5
+  multiScatteringEC: 0.5
+  silverSpread: 0.5
   atmosphereColor: {r: 0.4766436, g: 0.48061082, b: 0.5588235, a: 0}
   atmosphereSaturateDistance: 100000
   weatherTex: {fileID: 2800000, guid: c73be893af46a1e4db152d42aacae768, type: 3}

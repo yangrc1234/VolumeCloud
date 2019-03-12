@@ -5,7 +5,7 @@
 #define MAX_SAMPLE_COUNT 96
 
 #define THICKNESS 6000.0
-#define CENTER 4500.0
+#define CENTER 5000.0
 
 #define EARTH_RADIUS 5000000.0
 #define EARTH_CENTER float3(0, -EARTH_RADIUS, 0)
@@ -182,7 +182,7 @@ float SampleOpticsDistanceToSun(float3 worldPos) {
 		half3 direction = _WorldSpaceLightPos0;
 		float3 samplePoint = worldPos
 			+ (direction * step * TRANSMITTANCE_SAMPLE_STEP);
-		float sampleResult = SampleDensity(samplePoint, mipmapOffset, true);
+		float sampleResult = SampleDensity(samplePoint, mipmapOffset, false);
 		opticsDistance += TRANSMITTANCE_SAMPLE_STEP * sampleResult;
 		mipmapOffset += 0.5;
 		step += 1;
