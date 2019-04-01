@@ -4,8 +4,8 @@
 #define MIN_SAMPLE_COUNT 64
 #define MAX_SAMPLE_COUNT 96
 
-#define THICKNESS 6000.0
-#define CENTER 5000.0
+#define THICKNESS 8000.0
+#define CENTER 5500.0
 
 #define EARTH_RADIUS 5000000.0
 #define EARTH_CENTER float3(0, -EARTH_RADIUS, 0)
@@ -13,10 +13,7 @@
 #define CLOUDS_START (CENTER - THICKNESS/2)
 #define CLOUDS_END (CENTER + THICKNESS/2)
 
-#define TRANSMITTANCE_SAMPLE_STEP 512.0
-#define TRANSMITTANCE_SAMPLE_STEP_COUNT 6
-//#define TRANSMITTANCE_SAMPLE_LENGTH (TRANSMITTANCE_SAMPLE_STEP_COUNT * TRANSMITTANCE_SAMPLE_STEP)
-
+#define TRANSMITTANCE_SAMPLE_STEP 256.0f
 
 //Base shape
 sampler3D _BaseTex;
@@ -173,19 +170,29 @@ float fastAcos(float x) {
 	return (-0.69813170079773212f * x * x - 0.87266462599716477f) * x + 1.5707963267948966f;
 }
 
+//We raymarch to sun using length of pattern 1,2,4,8, corresponding to step value.
+//First sample(length 1) should sample at length 0.5, meaning an average inside length 1.
+//Second sample should sample at 1.5, meaning an average inside [1, 2],
+//Third should sample at 3.0, which is [2, 4]
+//Forth at 6.0, meaning [4, 8]
+static const float shadowSampleDistance[] = {
+	0.5, 1.5, 3.0, 6.0, 12.0
+};
+
+static const float shadowSampleContribution[] = {
+	1.0f, 1.0f, 2.0f, 4.0f, 8.0f
+};
+
 float SampleOpticsDistanceToSun(float3 worldPos) {
 	int mipmapOffset = 0.5;
-	float step = 0.5;
-	//float transmittance = 1.0f;
 	float opticsDistance = 0.0f;
-	for (float i = 1; i <= TRANSMITTANCE_SAMPLE_STEP_COUNT; i++) {
+	[unroll]
+	for (int i = 0; i < 5; i++) {
 		half3 direction = _WorldSpaceLightPos0;
-		float3 samplePoint = worldPos
-			+ (direction * step * TRANSMITTANCE_SAMPLE_STEP);
+		float3 samplePoint = worldPos + direction * shadowSampleDistance[i] * TRANSMITTANCE_SAMPLE_STEP;
 		float sampleResult = SampleDensity(samplePoint, mipmapOffset, false);
-		opticsDistance += TRANSMITTANCE_SAMPLE_STEP * sampleResult;
+		opticsDistance += shadowSampleContribution[i] * TRANSMITTANCE_SAMPLE_STEP * sampleResult;
 		mipmapOffset += 0.5;
-		step += 1;
 	}
 	return opticsDistance;
 }

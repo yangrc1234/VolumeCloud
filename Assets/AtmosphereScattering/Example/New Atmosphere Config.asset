@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a909801085fa7db47939f4858f8f7a1f, type: 3}
+  m_Name: New Atmosphere Config
+  m_EditorClassIdentifier: 
+  AtmosphereDensity: 1
+  SunRadianceOnAtmosphere: {x: 5, y: 5, z: 5}
+  LightingScale: 1
+  atmosphere_top_radius: 6420000
+  atmosphere_bot_radius: 6360000
+  atmosphere_sun_angular_radius: 0.0087
+  rayleigh_scattering: 1
+  rayleigh_scale_height: 8000
+  mie_scattering: 1
+  mie_scale_height: 1200
+  mie_phase_function_g: 0.7
+  ozone_extinction: 1
+  ozone_scale_height: 1000

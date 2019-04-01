@@ -1,0 +1,354 @@
+﻿
+/*
+Helper functions. See https://ebruneton.github.io/precomputed_atmospheric_scattering/atmosphere/functions.glsl.html#transmittance_computation
+*/
+//Convert (0.0, 1.0) to actual texel position.
+
+#include "./TransmittanceHelper.cginc"
+#include "SingleScatteringHelper.cginc"
+#include "MultipleScatteringHelper.cginc"
+#include "GroundHelper.cginc"
+
+#pragma kernel CalculateTransmittanceLUT
+#pragma kernel CalculateSingleScatteringLUT
+#pragma kernel CalculateMultipleScatteringDensityLUT
+#pragma kernel CalculateMultipleScatteringLUT
+#pragma kernel CalculateGroundDirectIrradianceLUT
+#pragma kernel CalculateGroundIndirectIrradianceLUT
+#pragma kernel CombineGroundIrradianceLUT
+#pragma kernel CombineMultipleScatteringLUT
+#pragma kernel ClearCombineGroundIrradianceLUT
+#pragma kernel ClearCombineMultipleScatteringLUT
+#pragma kernel CalculateCameraScatteringVolume
+
+/*
+Common parameters.
+*/
+sampler2D TransmittanceLUT;
+sampler3D SingleRayleighScatteringLUT;
+sampler3D SingleMieScatteringLUT;
+sampler3D MultipleScatteringDensityLUT;
+sampler3D MultipleScatteringLUT;
+sampler2D IrradianceLUT;
+int2 TransmittanceSize;
+int3 ScatteringSize;
+int2 IrradianceSize; 
+int ScatteringOrder;
+
+//When only part of results need to be computed, we offset some results.
+uint3 _ThreadOffset;
+
+
+/*
+==================================
+||Transmittance LUT calculation.||
+==================================
+*/
+
+RWTexture2D<float3> TransmittanceLUTResult;
+
+DimensionlessSpectrum ComputeTransmittanceToTopAtmosphereBoundaryTexture(
+	IN(AtmosphereParameters) atmosphere, IN(vec2) uv_coord, IN(vec2) tex_size) {
+	Length r;
+	Number mu;
+	GetRMuFromTransmittanceTextureUv(
+		atmosphere, uv_coord, r, mu, tex_size.x, tex_size.y);
+	return ComputeTransmittanceToTopAtmosphereBoundary(atmosphere, r, mu);
+}
+
+[numthreads(32, 32, 1)]
+void CalculateTransmittanceLUT(uint3 id : SV_DispatchThreadID, uint3 groupid : SV_GroupThreadID)
+{
+	id += _ThreadOffset * uint3(32, 32, 1);
+
+	uint w, h;
+	TransmittanceLUTResult.GetDimensions(w, h);
+	AtmosphereParameters atm = GetAtmParameters();
+
+	float2 uv = vec2((0.5f + id.x) / w, (0.5f + id.y) / h);
+	float r, mu;
+
+	GetRMuFromTransmittanceTextureUv(
+		atm, uv, r, mu, w, h);
+
+	float3 result = ComputeTransmittanceToTopAtmosphereBoundaryTexture(
+		atm, uv, vec2(w, h)
+	);
+
+	TransmittanceLUTResult[id.xy] = result;
+}
+
+/*
+==================================
+||		SingleScattering		||
+==================================
+*/
+
+RWTexture3D<float3> SingleScatteringRayleighLUTResult;
+RWTexture3D<float3> SingleScatteringMieLUTResult;
+
+[numthreads(8, 8, 8)]
+void CalculateSingleScatteringLUT(uint3 id : SV_DispatchThreadID, uint3 groupid : SV_GroupThreadID)
+{
+	id += _ThreadOffset * uint3(8, 8, 8);
+
+	uint w, h, d; 
+	SingleScatteringRayleighLUTResult.GetDimensions(w, h, d);
+	AtmosphereParameters atm = GetAtmParameters();
+
+	float3 uvw = vec3((0.5f + id.x) / w, (0.5f + id.y) / h, (0.5f + id.z) / d);
+
+	float3 rayleigh, mie;
+	ComputeSingleScatteringTexture(
+		atm, TransmittanceLUT, uint2(TransmittanceSize), uvw, uint3(ScatteringSize), rayleigh, mie
+	);
+
+	SingleScatteringMieLUTResult[id.xyz] = mie;
+	SingleScatteringRayleighLUTResult[id.xyz] = rayleigh;
+}
+
+/*
+==========================================
+||		Multiple Scattering Density		||
+==========================================
+*/
+RWTexture3D<float3> MultipleScatteringDensityResult;
+
+RadianceDensitySpectrum ComputeScatteringDensityTexture(
+	IN(AtmosphereParameters) atmosphere,
+	IN(TransmittanceTexture) transmittance_texture,
+	uint2 transmittance_size,
+	IN(ReducedScatteringTexture) single_rayleigh_scattering_texture,
+	IN(ReducedScatteringTexture) single_mie_scattering_texture,
+	IN(ScatteringTexture) multiple_scattering_texture,
+	uint3 scattering_size,
+	IN(IrradianceTexture) irradiance_texture,
+	uint2 irradiance_size,
+	IN(vec3) frag_coord, int scattering_order);
+
+[numthreads(8,8,8)]
+void CalculateMultipleScatteringDensityLUT(uint3 id : SV_DispatchThreadID, uint3 groupid : SV_GroupThreadID) {
+
+	id += _ThreadOffset * uint3(8, 8, 8);
+
+	uint w, h, d;
+	MultipleScatteringDensityResult.GetDimensions(w, h, d);
+	AtmosphereParameters atm = GetAtmParameters();
+
+	float3 uvw = vec3((0.5f + id.x) / w, (0.5f + id.y) / h, (0.5f + id.z) / d);
+	
+	float3 density = ComputeScatteringDensityTexture(
+		atm, TransmittanceLUT, TransmittanceSize,
+		SingleRayleighScatteringLUT, SingleMieScatteringLUT, MultipleScatteringLUT, ScatteringSize,
+		IrradianceLUT, IrradianceSize,
+		uvw, ScatteringOrder
+	);
+
+	MultipleScatteringDensityResult[id.xyz] = density;
+}
+
+
+/*
+==========================================
+||		Multiple Scattering 			||
+==========================================
+*/
+
+RWTexture3D<float3> MultipleScatteringResult;
+
+RadianceSpectrum ComputeMultipleScatteringTexture(
+	IN(AtmosphereParameters) atmosphere,
+	IN(TransmittanceTexture) transmittance_texture,
+	uint2 transmittance_size,
+	IN(ScatteringDensityTexture) scattering_density_texture,
+	uint3 scattering_size,
+	IN(vec3) frag_coord);
+
+[numthreads(8, 8, 8)]
+void CalculateMultipleScatteringLUT(uint3 id : SV_DispatchThreadID, uint3 groupid : SV_GroupThreadID) {
+	id += _ThreadOffset * uint3(8, 8, 8);
+
+	uint w, h, d;
+	MultipleScatteringResult.GetDimensions(w, h, d);
+	AtmosphereParameters atm = GetAtmParameters();
+
+	float3 uvw = vec3((0.5f + id.x) / w, (0.5f + id.y) / h, (0.5f + id.z) / d);
+
+	float3 scattering = ComputeMultipleScatteringTexture(atm, TransmittanceLUT, TransmittanceSize, MultipleScatteringDensityLUT, ScatteringSize, uvw);
+
+	MultipleScatteringResult[id.xyz] = scattering;
+}
+
+/*
+==========================================
+||		Ground Direct Irradiance		||
+==========================================
+*/
+
+RWTexture2D<float3> GroundDirectIrradianceResult;
+
+IrradianceSpectrum ComputeDirectIrradianceTexture(
+	IN(AtmosphereParameters) atmosphere,
+	IN(TransmittanceTexture) transmittance_texture,
+	uint2 transmittance_size,
+	IN(vec2) frag_coord,
+	uint2 irrdiance_size);
+
+[numthreads(32, 32, 1)]
+void CalculateGroundDirectIrradianceLUT(uint3 id : SV_DispatchThreadID, uint3 groupid : SV_GroupThreadID) {
+	id += _ThreadOffset * uint3(32, 32, 1);
+
+	uint w, h;
+	GroundDirectIrradianceResult.GetDimensions(w, h);
+	AtmosphereParameters atm = GetAtmParameters();
+
+	float2 uvw = vec2((0.5f + id.x) / w, (0.5f + id.y) / h);
+
+	float3 irradiance = ComputeDirectIrradianceTexture(atm, TransmittanceLUT, TransmittanceSize, uvw, IrradianceSize);
+
+	GroundDirectIrradianceResult[id.xy] = irradiance;
+}
+
+
+/*
+==========================================
+||		Ground Indirect Irradiance		||
+==========================================
+*/
+
+RWTexture2D<float3> GroundIndirectIrradianceResult;
+
+IrradianceSpectrum ComputeIndirectIrradianceTexture(
+	IN(AtmosphereParameters) atmosphere,
+	IN(ReducedScatteringTexture) single_rayleigh_scattering_texture,
+	IN(ReducedScatteringTexture) single_mie_scattering_texture,
+	IN(ScatteringTexture) multiple_scattering_texture,
+	uint3 scattering_size,
+	IN(vec2) frag_coord, int scattering_order, uint2 irrdiance_size);
+
+[numthreads(32, 32, 1)]
+void CalculateGroundIndirectIrradianceLUT(uint3 id : SV_DispatchThreadID, uint3 groupid : SV_GroupThreadID) {
+	id += _ThreadOffset * uint3(32, 32, 1);
+
+	uint w, h;
+	GroundIndirectIrradianceResult.GetDimensions(w, h);
+	AtmosphereParameters atm = GetAtmParameters();
+
+	float2 uvw = vec2((0.5f + id.x) / w, (0.5f + id.y) / h);
+
+	float3 irradiance = ComputeIndirectIrradianceTexture(atm, 
+		SingleRayleighScatteringLUT, SingleMieScatteringLUT, MultipleScatteringLUT, ScatteringSize, 
+		uvw, ScatteringOrder, uint2(w,h));
+
+	GroundIndirectIrradianceResult[id.xy] = irradiance;
+}
+
+
+/*
+==========================================
+||		Ground Irradiance Combine		||
+==========================================
+*/
+
+RWTexture2D<float3> GroundIrradianceSumTarget;
+RWTexture2D<float3> GroundIrradianceSumAdder;
+
+[numthreads(32, 32, 1)]
+void CombineGroundIrradianceLUT(uint3 id : SV_DispatchThreadID, uint3 groupid : SV_GroupThreadID) {
+	id += _ThreadOffset * uint3(32, 32, 1);
+
+	GroundIrradianceSumTarget[id.xy] += GroundIrradianceSumAdder[id.xy];
+}
+
+[numthreads(32, 32, 1)]
+void ClearCombineGroundIrradianceLUT(uint3 id : SV_DispatchThreadID, uint3 groupid : SV_GroupThreadID) {
+	id += _ThreadOffset * uint3(32, 32, 1);
+	GroundIrradianceSumTarget[id.xy] = 0.0f;
+}
+
+/*
+==========================================
+||		Scattering	Combine				||
+==========================================
+*/
+
+RWTexture3D<float4> ScatteringSumTarget;
+RWTexture3D<float4> ScatteringSumAdd;
+
+[numthreads(8, 8, 8)]
+void CombineMultipleScatteringLUT(uint3 id : SV_DispatchThreadID, uint3 groupid : SV_GroupThreadID) {
+	id += _ThreadOffset * uint3(8, 8, 8);
+
+	ScatteringSumTarget[id.xyz] += ScatteringSumAdd[id.xyz];
+}
+[numthreads(8, 8, 8)]
+void ClearCombineMultipleScatteringLUT(uint3 id : SV_DispatchThreadID, uint3 groupid : SV_GroupThreadID) {
+	id += _ThreadOffset * uint3(8, 8, 8);
+
+	ScatteringSumTarget[id.xyz] = 0.0f;
+}
+
+/*
+==========================================
+||		Camera Volume Tex				||
+==========================================
+*/
+#include "HLSLSupport.cginc"
+#include "AerialPerspectiveHelper.cginc"
+RWTexture3D<float3> CameraVolumeTransmittance;
+RWTexture3D<float3> CameraVolumeScattering;
+float4x4 Inverse_VP;
+float3 _CameraPos;
+float3 _SunRadianceOnAtm;
+float3 _SunDir;
+
+float2 _NearFarPlane;
+float3 _CamBotLeft;
+float3 _CamBotRight;
+float3 _CamTopLeft;
+float3 _CamTopRight;
+
+[numthreads(8, 8, 8)]
+void CalculateCameraScatteringVolume(uint3 id : SV_DispatchThreadID, uint3 groupid : SV_GroupThreadID) {
+	id += _ThreadOffset * uint3(8, 8, 8);
+
+	uint3 whd;
+	CameraVolumeScattering.GetDimensions(whd.x, whd.y, whd.z);
+	float3 texelSize = 1.0f / whd;
+	
+	//Get uvw from id.
+	float3 uvw = (id + 0.5f) * texelSize;
+
+	float3 viewDir;
+
+	//Get camera ray.
+	{
+		float3 t1 = lerp(_CamBotLeft, _CamBotRight, uvw.x);
+		float3 t2 = lerp(_CamTopLeft, _CamTopRight, uvw.x);
+		float3 ray_end = lerp(t1, t2, uvw.y);
+		viewDir = ray_end - _CameraPos;
+	}
+
+	float distance = lerp(_NearFarPlane.x, _NearFarPlane.y, uvw.z);
+	viewDir = normalize(viewDir);
+
+	AtmosphereParameters atm = GetAtmParameters();
+	float3 earthToCamera = _CameraPos + float3(0.0f, atm.bottom_radius, 0.0f);
+	
+	float r, mu, mu_s, nu;
+	float r_d, mu_d, mu_s_d;
+
+	CalculateRMuMusFromPosViewdir(atm, _CameraPos, viewDir, _SunDir, r, mu, mu_s, nu);
+	float d1, d2;
+	bool ray_r_mu_intersects_ground = RayIntersectsGround(atm, r, mu, d1, d2);
+	CalculateRMuMusForDistancePoint(atm, r, mu, mu_s, nu, distance, r_d, mu_d, mu_s_d);
+
+	float3 transmittanceToTarget = GetTransmittanceLerped(
+			r, mu, distance, ray_r_mu_intersects_ground);
+	float3 scatteringBetween =
+		GetTotalScatteringLerped(r, mu, mu_s, nu, ray_r_mu_intersects_ground)
+		- GetTotalScatteringLerped(r_d, mu_d, mu_s_d, nu, ray_r_mu_intersects_ground) * transmittanceToTarget;
+
+	CameraVolumeTransmittance[id] = transmittanceToTarget;
+	CameraVolumeScattering[id] = scatteringBetween;
+}
