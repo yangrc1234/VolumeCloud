@@ -214,6 +214,8 @@ Shader "Unlit/CloudShader"
 #include "UnityCG.cginc"
 #include "Lighting.cginc"
 
+#define USE_YANGRC_AP	//Do we use atmosphere perspective? turn off this if ap is not needed.
+
 				sampler2D _MainTex;	//Final image without cloud.
 				sampler2D _CloudTex;	//The full resolution cloud tex we generated.
 				sampler2D _CameraDepthTexture;
@@ -242,11 +244,12 @@ Shader "Unlit/CloudShader"
 					o.vsray = (2.0 * v.uv - 1.0) * _ProjectionExtents.xy + _ProjectionExtents.zw;
 					return o;
 				}
-#define USE_YANGRC_AP
 				half3 _AmbientColor;
 				half3 _AtmosphereColor;
 				float _AtmosphereColorSaturateDistance;
+#ifdef USE_YANGRC_AP
 #include "Assets/AtmosphereScattering/Shaders/AerialPerspectiveHelper.cginc"
+#endif	
 				half4 frag(v2f i) : SV_Target
 				{
 					float3 vspos = float3(i.vsray, 1.0);
@@ -258,8 +261,23 @@ Shader "Unlit/CloudShader"
 
 					float depth = currSample.g;
 					float atmosphericBlendFactor = saturate(pow(depth / _AtmosphereColorSaturateDistance, 0.6));
-					half4 result = currSample;
-					result.rgb = currSample.r * _LightColor0.rgb + currSample.b *_AmbientColor * currSample.a;
+					
+					float3 sunColor;
+#ifdef USE_YANGRC_AP
+					{
+						//Calculate color using depth estimated "position", and transmittance from ap system.
+						float3 estimatedCloudCenter = _WorldSpaceCameraPos + depth * viewDir;
+						float r, mu, mu_s, nu;
+						CalculateRMuMusFromPosViewdir(GetAtmParameters(), estimatedCloudCenter, viewDir, _WorldSpaceLightPos0, r, mu, mu_s, nu);
+						float3 transmittance = GetTransmittanceToTopAtmosphereBoundaryLerped(r, mu_s);
+						sunColor = transmittance * _SunRadianceOnAtm;
+					}
+#else
+					sunColor = _LightColor0.rgb;
+#endif
+					half4 result;
+					result.rgb = currSample.r * sunColor + currSample.b *_AmbientColor * currSample.a;
+					result.a = currSample.a;
 
 #ifdef USE_YANGRC_AP
 					///* Calculate ap */
