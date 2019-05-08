@@ -20,7 +20,7 @@ LERP_TEXTURE(3, _MultipleScattering)
 float2 _TransmittanceSize;
 float3 _ScatteringSize;
 float2 _GroundIrradianceSize;
-
+float3 _SunRadianceOnAtm;
 float _LerpValue;
 
 float3 GetTransmittanceLerped(float r, float mu, float d, bool intersect_ground) {
@@ -109,9 +109,9 @@ void ComputeSingleScattering(
 float3 GetTotalScatteringLerped(float r, float mu, float mu_s, float nu, bool ray_r_mu_intersects_ground) {
 	AtmosphereParameters atm = GetAtmParameters();
 	return
-		InternalGetRayleighLerped(atm, r, mu, mu_s, nu, ray_r_mu_intersects_ground)
+		(InternalGetRayleighLerped(atm, r, mu, mu_s, nu, ray_r_mu_intersects_ground)
 		+ InternalGetMieLerped(atm, r, mu, mu_s, nu, ray_r_mu_intersects_ground)
-		+ InternalGetMultipleLerped(atm, r, mu, mu_s, nu, ray_r_mu_intersects_ground);
+		+ InternalGetMultipleLerped(atm, r, mu, mu_s, nu, ray_r_mu_intersects_ground)) * _SunRadianceOnAtm;
 }
 
 float3 GetTotalScatteringLerped(float r, float mu, float mu_s, float nu) {
@@ -124,7 +124,7 @@ float3 EvaluateSunDiskRadianceOfUnitRadiance(AtmosphereParameters atm, float r, 
 	//Evaluate sun's solid angle by formula omega = 2 * PI * ( 1 - cos(sun_angular_radius)) (https://en.wikipedia.org/wiki/Solid_angle)
 	float cos_sun_angular_radius = cos(atm.sun_angular_radius);
 	float radianceTransmitted = max(0.0f, (nu - cos_sun_angular_radius) / (1.0f - cos_sun_angular_radius));
-	return radianceTransmitted;
+	return _SunRadianceOnAtm * radianceTransmitted;
 }
 
 
@@ -137,11 +137,11 @@ sampler3D _CameraVolumeTransmittance;
 sampler3D _CameraVolumeScattering;
 
 float3 GetTransmittanceWithCameraVolume(float3 uvw) {
-	return tex3Dlod(_CameraVolumeTransmittance, float4(uvw, 0.0f)).rgb;
+	return tex3Dlod(_CameraVolumeTransmittance, float4(uvw, 0.0f)).rgb * _SunRadianceOnAtm;
 }
 
 float3 GetScatteringWithCameraVolume(float3 uvw) {
-	return tex3Dlod(_CameraVolumeScattering, float4(uvw, 0.0f)).rgb;
+	return tex3Dlod(_CameraVolumeScattering, float4(uvw, 0.0f)).rgb * _SunRadianceOnAtm;
 }
 
 #endif

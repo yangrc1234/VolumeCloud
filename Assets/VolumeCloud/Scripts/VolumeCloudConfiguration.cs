@@ -21,7 +21,6 @@ namespace Yangrc.VolumeCloud {
         [Header("Shape - Curl")]
         [Range(0, 5)]
         public float curlTile = 0.2f;
-        [Range(0, 2)]
         public float curlStrength = 1.0f;
 
         [Header("Shape - Modifiers")]

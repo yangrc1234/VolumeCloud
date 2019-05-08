@@ -63,7 +63,6 @@ Shader "Skybox/AtmosphereScatteringPrecomputed"
 				bool ray_r_mu_intersects_ground,
 				OUT(IrradianceSpectrum) rayleigh, OUT(IrradianceSpectrum) mie);
 
-			float3 _SunRadianceOnAtm;
 			half4 frag (v2f i) : SV_Target
 			{ 
 				i.worldPos /= i.worldPos.w;
@@ -101,7 +100,7 @@ Shader "Skybox/AtmosphereScatteringPrecomputed"
 				{
 					direct_sun_strength = EvaluateSunDiskRadianceOfUnitRadiance(atm, r, mu, nu) * transmittance;
 				}
-				return half4(_SunRadianceOnAtm * (direct_sun_strength + GetTotalScatteringLerped(r, mu, mu_s, nu, ray_r_mu_intersects_ground)), 0.0f);
+				return half4((direct_sun_strength + GetTotalScatteringLerped(r, mu, mu_s, nu, ray_r_mu_intersects_ground)), 0.0f);
 			}
 			ENDCG
 		}

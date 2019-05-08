@@ -299,7 +299,6 @@ RWTexture3D<float3> CameraVolumeTransmittance;
 RWTexture3D<float3> CameraVolumeScattering;
 float4x4 Inverse_VP;
 float3 _CameraPos;
-float3 _SunRadianceOnAtm;
 float3 _SunDir;
 
 float2 _NearFarPlane;

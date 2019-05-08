@@ -47,7 +47,6 @@
 			sampler2D _MainTex;
 			sampler2D _CameraDepthTexture;
 			float _LightScale;
-			float3 _SunRadianceOnAtm;
 
 			void CalculateRMuMusForDistancePoint(Length r, Number mu, Number mu_s, Number nu, Number d, OUT(Length) r_d, OUT(Number) mu_d, OUT(Number) mu_s_d);
 			void CalculateRMuMusFromPosViewdir(AtmosphereParameters atm, float3 pos, float3 view_ray, float3 sun_direction, OUT(float) mu, OUT(float) mu_s, OUT(float) nu);
@@ -93,7 +92,7 @@
 				float3 transmittanceToTarget = GetTransmittanceWithCameraVolume(uvw);
 				float3 scatteringBetween = GetScatteringWithCameraVolume(uvw);
 #endif
-				return half4(original * transmittanceToTarget + _SunRadianceOnAtm * scatteringBetween, 1.0);
+				return half4(original * transmittanceToTarget + scatteringBetween, 1.0);
 			}
 			ENDCG
 		}

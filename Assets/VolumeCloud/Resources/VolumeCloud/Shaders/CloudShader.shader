@@ -246,7 +246,6 @@ Shader "Unlit/CloudShader"
 				half3 _AmbientColor;
 				half3 _AtmosphereColor;
 				float _AtmosphereColorSaturateDistance;
-				half3 _SunRadianceOnAtm;
 #include "Assets/AtmosphereScattering/Shaders/AerialPerspectiveHelper.cginc"
 				half4 frag(v2f i) : SV_Target
 				{
@@ -282,7 +281,7 @@ Shader "Unlit/CloudShader"
 						GetTotalScatteringLerped(r, mu, mu_s, nu, ray_r_mu_intersects_ground)
 						- GetTotalScatteringLerped(r_d, mu_d, mu_s_d, nu, ray_r_mu_intersects_ground) * transmittanceToTarget;
 
-					result.rgb = result.rgb * transmittanceToTarget + scatteringBetween * _SunRadianceOnAtm;
+					result.rgb = result.rgb * transmittanceToTarget + scatteringBetween;
 #else
 					result.rgb = lerp(result.rgb, _AtmosphereColor * currSample.a, saturate(atmosphericBlendFactor));
 #endif
