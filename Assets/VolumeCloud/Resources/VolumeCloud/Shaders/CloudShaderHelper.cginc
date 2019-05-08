@@ -328,8 +328,8 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 				intTransmittance *= transmittance;
 
 				//intensity += (1 - alpha) * sampledEnergy * sampledAlpha;
-				depth += transmittance * length(rayPos - startPos);
-				transmittanceSum += transmittance;
+				depth += (1.0f - transmittance) * length(rayPos - startPos);
+				transmittanceSum += (1.0f - transmittance);
 				//alpha += (1 - alpha) * sampledAlpha;
 
 				//if (alpha > 1) {
