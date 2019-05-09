@@ -94,7 +94,7 @@ namespace Yangrc.VolumeCloud {
             float offsetY = offset[frameIndex, 1];
             //GetProjectionExtents will offset the camera "window".
             mat.SetVector("_ProjectionExtents", mcam.GetProjectionExtents(offsetX * (1 << downSample), offsetY * (1 << downSample)));
-            mat.SetFloat("_RaymarchOffset", (haltonSequence[haltonSequenceIndex] / 16.0f + bayerOffsets[offset[frameIndex, 0], offset[frameIndex, 1]] / 16.0f));
+            mat.SetFloat("_RaymarchOffset", (haltonSequence[haltonSequenceIndex] / 16.0f));
             Graphics.Blit(null, lowresBuffer, mat, 0);
         
             //2. Blit low-res buffer with previous image to make full-res result.
