@@ -129,8 +129,8 @@ float SampleDensity(float3 worldPos,int lod, bool cheap) {
 	worldPos = ApplyWind(worldPos);
 	tempResult = tex3Dlod(_BaseTex, half4(worldPos / _CloudSize * _BaseTile, lod)).rgba;
 	float low_freq_fBm = (tempResult.g * .625) + (tempResult.b * 0.25) + (tempResult.a * 0.125);
-	float sampleResult = RemapClamped(tempResult.r, 0.0, .8, .0, 1.0);
-	sampleResult = RemapClamped(sampleResult, -low_freq_fBm, 1.0, 0.0, 1.0);
+	float sampleResult = RemapClamped(tempResult.r, 0.0, .8, .0, 1.0);	//perlin-worley
+	sampleResult = RemapClamped(low_freq_fBm, -0.2 * sampleResult, 1.0, 0.0, 1.0);
 
 	//Sample Height-Density map.
 	float2 densityAndErodeness = tex2D(_HeightDensity, float2(cloudType, heightPercent)).rg;
@@ -149,8 +149,12 @@ float SampleDensity(float3 worldPos,int lod, bool cheap) {
 		float3 tempResult2;
 		tempResult2 = tex3Dlod(_DetailTex, half4(worldPos / _CloudSize * _DetailTile, lod)).rgb;
 		float detailsampleResult = (tempResult2.r * 0.625) + (tempResult2.g * 0.25) + (tempResult2.b * 0.125);
-		float detail_modifier = lerp(detailsampleResult, 1.0 - detailsampleResult, saturate(heightPercent));
-		sampleResult = RemapClamped(sampleResult, min(0.8, detail_modifier * _DetailStrength * (1.0 - densityAndErodeness.y)), 1.0, 0.0, 1.0);
+		//Detail sample result here is worley-perlin fbm.
+
+		//On cloud marked with low erodness, we see cauliflower style, so when doing erodness, we use 1.0f - detail.
+		//On cloud marked with high erodness, we see thin line style, so when doing erodness we use detail.
+		float detail_modifier = lerp(1.0f - detailsampleResult, detailsampleResult, densityAndErodeness.y);
+		sampleResult = RemapClamped(sampleResult, min(0.8, detail_modifier * _DetailStrength), 1.0, 0.0, 1.0);
 	}
 
 	//sampleResult = pow(sampleResult, 1.2);
@@ -190,7 +194,7 @@ float SampleOpticsDistanceToSun(float3 worldPos) {
 	for (int i = 0; i < 5; i++) {
 		half3 direction = _WorldSpaceLightPos0;
 		float3 samplePoint = worldPos + direction * shadowSampleDistance[i] * TRANSMITTANCE_SAMPLE_STEP;
-		float sampleResult = SampleDensity(samplePoint, mipmapOffset, false);
+		float sampleResult = SampleDensity(samplePoint, mipmapOffset, true);
 		opticsDistance += shadowSampleContribution[i] * TRANSMITTANCE_SAMPLE_STEP * sampleResult;
 		mipmapOffset += 0.5;
 	}
@@ -273,7 +277,6 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 	int sample_count = lerp(MAX_SAMPLE_COUNT, MIN_SAMPLE_COUNT, dir.y);	//dir.y ==0 means horizontal, use maximum sample count
 	float sample_step = min(length(sampleEnd - sampleStart) / sample_count, 500);
 
-	//depth = length(sampleStart - startPos);
 	depth = 0.0f;
 
 	if (sampleStart.y < -200) {
@@ -287,63 +290,40 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 	bool detailedSample = false;
 	int missedStepCount = 0;
 
-	float transmittanceSum = 0.00001f;
+	float depthweightsum = 0.00001f;
 
 	float raymarchDistance = raymarchOffset * sample_step;
 	[loop]
 	for (int j = 0; j < sample_count; j++) {
 		float3 rayPos = sampleStart + dir * raymarchDistance;
-		if (!detailedSample) {
-			float sampleResult = SampleDensity(rayPos, 0, true);
-			if (sampleResult > 0) {
-				detailedSample = true;
-				raymarchDistance -= sample_step * 2;
-				missedStepCount = 0;
-				continue;
-			}
-			else {
-				raymarchDistance += sample_step * 2;
-			}
-		}
-		else {
+		float cheapResult = SampleDensity(rayPos, 0, true);
+		detailedSample = cheapResult > 0.0f;
+		if (detailedSample) {
 			float sampleResult = SampleDensity(rayPos, 0, false);
-			if (sampleResult <= 0) {
-				missedStepCount++;
-				if (missedStepCount > 10) {
-					detailedSample = false;
-				}
-			}
-			else {
-				float density = sampleResult;
-				float extinction = _ExtinctionCoefficient * density;
-				float sampledEnergy = SampleEnergy(rayPos, dir);	//Phase function included.
+			float density = sampleResult;
+			float extinction = _ExtinctionCoefficient * density;
+			float sampledEnergy = SampleEnergy(rayPos, dir);	//Phase function included.
 
-				float clampedExtinction = max(extinction, 1e-7);
-				float transmittance = exp(-extinction * sample_step);
+			float clampedExtinction = max(extinction, 1e-7);
+			float transmittance = exp(-extinction * sample_step);
 				
-				float3 luminance = sampledEnergy;
-				float3 integScatt = (luminance - luminance * transmittance) / clampedExtinction;
+			float3 luminance = sampledEnergy;
+			float3 integScatt = (luminance - luminance * transmittance) / clampedExtinction;
 
-				intensity += intTransmittance * integScatt;
-				intTransmittance *= transmittance;
-
-				//intensity += (1 - alpha) * sampledEnergy * sampledAlpha;
-				depth += (1.0f - transmittance) * length(rayPos - startPos);
-				transmittanceSum += (1.0f - transmittance);
-				//alpha += (1 - alpha) * sampledAlpha;
-
-				//if (alpha > 1) {
-				//	intensity /= alpha;
-				//	depth /= alpha;
-				//	return 1;
-				//}
-			}
+			intensity += intTransmittance * integScatt;
+			intTransmittance *= transmittance;
+			depth += (1.0f - transmittance) * length(rayPos - startPos);
+			depthweightsum += (1.0f - transmittance);
 			raymarchDistance += sample_step;
 		}
+		else
+		{
+			raymarchDistance += sample_step * 2;
+		}
 	}
-	depth /= transmittanceSum;
+	depth /= depthweightsum;
 	if (depth == 0.0f) {
-		depth = length(sampleStart - startPos);
+		depth = length(sampleEnd - startPos);
 	}
 	return 1.0f - intTransmittance;
 }

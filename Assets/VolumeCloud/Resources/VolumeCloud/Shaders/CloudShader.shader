@@ -197,7 +197,7 @@ Shader "Unlit/CloudShader"
 
 					//Correct means the how believable the low-res buffer is.
 					//On points the low-res buffer hit, or can't find from previous full frame correct, will be 1.0
-					half correct = max(.2 * CurrentCorrect(i.uv, _Jitter), outOfBound);
+					half correct = max(.1 * CurrentCorrect(i.uv, _Jitter), outOfBound);
 
 					return lerp(prevSample, result, correct);
 				}
