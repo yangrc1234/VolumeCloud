@@ -1,8 +1,6 @@
 #include "UnityCG.cginc"
 // Upgrade NOTE: excluded shader from DX11, OpenGL ES 2.0 because it uses unsized arrays
 #pragma exclude_renderers d3d11 gles
-#define MIN_SAMPLE_COUNT 64
-#define MAX_SAMPLE_COUNT 96
 
 #define THICKNESS 8000.0
 #define CENTER 5500.0
@@ -100,10 +98,9 @@ float3 ApplyWind(float3 worldPos) {
 }
 
 float HenryGreenstein(float g, float cosTheta) {
-	float pif = (1.0 / (4.0 * 3.1415926f));
-	float numerator = 1 - g * g ;
-	float denominator = pow(1 + g * g - 2 * g * cosTheta, 1.5);
-	return pif * numerator / denominator;
+
+	float k = 3.0 / (8.0 * 3.1415926f) * (1.0 - g * g) / (2.0 + g * g);
+	return k * (1.0 + cosTheta * cosTheta) / pow(abs(1.0 + g * g - 2.0 * g * cosTheta), 1.5);
 }
 
 float SampleDensity(float3 worldPos,int lod, bool cheap) {
@@ -130,7 +127,7 @@ float SampleDensity(float3 worldPos,int lod, bool cheap) {
 	tempResult = tex3Dlod(_BaseTex, half4(worldPos / _CloudSize * _BaseTile, lod)).rgba;
 	float low_freq_fBm = (tempResult.g * .625) + (tempResult.b * 0.25) + (tempResult.a * 0.125);
 	float sampleResult = RemapClamped(tempResult.r, 0.0, .8, .0, 1.0);	//perlin-worley
-	sampleResult = RemapClamped(low_freq_fBm, -0.2 * sampleResult, 1.0, 0.0, 1.0);
+	sampleResult = RemapClamped(low_freq_fBm, -0.5 * sampleResult, 1.0, 0.0, 1.0);
 
 	//Sample Height-Density map.
 	float2 densityAndErodeness = tex2D(_HeightDensity, float2(cloudType, heightPercent)).rg;
@@ -153,7 +150,7 @@ float SampleDensity(float3 worldPos,int lod, bool cheap) {
 
 		//On cloud marked with low erodness, we see cauliflower style, so when doing erodness, we use 1.0f - detail.
 		//On cloud marked with high erodness, we see thin line style, so when doing erodness we use detail.
-		float detail_modifier = lerp(1.0f - detailsampleResult, detailsampleResult, densityAndErodeness.y);
+		float detail_modifier = lerp(1.0f - detailsampleResult, detailsampleResult, heightPercent);
 		sampleResult = RemapClamped(sampleResult, min(0.8, detail_modifier * _DetailStrength), 1.0, 0.0, 1.0);
 	}
 
@@ -205,7 +202,7 @@ float SampleEnergy(float3 worldPos, float3 viewDir) {
 	float opticsDistance = SampleOpticsDistanceToSun(worldPos);
 	float result = 0.0f;
 	[unroll]
-	for (int octaveIndex = 0; octaveIndex < 3; octaveIndex++) {
+	for (int octaveIndex = 0; octaveIndex < 2; octaveIndex++) {
 		float transmittance = exp(-_ExtinctionCoefficient * pow(_MultiScatteringB, octaveIndex) * opticsDistance);
 		float cosTheta = dot(viewDir, _WorldSpaceLightPos0);
 		float ecMult = pow(_MultiScatteringC, octaveIndex);
@@ -265,7 +262,7 @@ bool resolve_ray_start_end(float3 ws_origin, float3 ws_ray, out float3 start, ou
 	return true;
 }
  
-float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raymarchOffset, out float intensity,out float depth) {
+float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, int sample_count, float raymarchOffset, out float intensity,out float depth) {
 	float3 sampleStart, sampleEnd;
 
 	if (!resolve_ray_start_end(startPos, dir, sampleStart, sampleEnd)) {
@@ -274,7 +271,6 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 		return 0;
 	}
 
-	int sample_count = lerp(MAX_SAMPLE_COUNT, MIN_SAMPLE_COUNT, dir.y);	//dir.y ==0 means horizontal, use maximum sample count
 	float sample_step = min(length(sampleEnd - sampleStart) / sample_count, 500);
 
 	depth = 0.0f;
@@ -299,16 +295,14 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, float raym
 		float cheapResult = SampleDensity(rayPos, 0, true);
 		detailedSample = cheapResult > 0.0f;
 		if (detailedSample) {
-			float sampleResult = SampleDensity(rayPos, 0, false);
-			float density = sampleResult;
+			float density = SampleDensity(rayPos, 0, false);
 			float extinction = _ExtinctionCoefficient * density;
-			float sampledEnergy = SampleEnergy(rayPos, dir);	//Phase function included.
 
 			float clampedExtinction = max(extinction, 1e-7);
 			float transmittance = exp(-extinction * sample_step);
 				
-			float3 luminance = sampledEnergy;
-			float3 integScatt = (luminance - luminance * transmittance) / clampedExtinction;
+			float luminance = SampleEnergy(rayPos, dir);
+			float integScatt = (luminance - luminance * transmittance) / clampedExtinction;
 
 			intensity += intTransmittance * integScatt;
 			intTransmittance *= transmittance;

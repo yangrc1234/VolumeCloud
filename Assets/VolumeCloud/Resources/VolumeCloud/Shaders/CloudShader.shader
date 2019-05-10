@@ -59,6 +59,8 @@ Shader "Unlit/CloudShader"
 			#include "UnityCG.cginc"
 			#include "Lighting.cginc"
 
+			#define MIN_SAMPLE_COUNT 64
+			#define MAX_SAMPLE_COUNT 96
 			sampler2D _BlueNoise;
 			sampler2D _CameraDepthTexture;
 			float4 _ProjectionExtents;
@@ -104,7 +106,8 @@ Shader "Unlit/CloudShader"
 				float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
 				float intensity;
 				float depth;
-				float density = GetDentisy(worldPos, viewDir, 100000, fmod(_RaymarchOffset, 1.0), intensity, depth);
+				int sample_count = lerp(MAX_SAMPLE_COUNT, MIN_SAMPLE_COUNT, viewDir.y);	//dir.y ==0 means horizontal, use maximum sample count
+				float density = GetDentisy(worldPos, viewDir, 100000, sample_count, fmod(_RaymarchOffset, 1.0), intensity, depth);
 
 				/*RGBA: direct intensity, depth(this is differenct from the slide), ambient, alpha*/
 				//return depth / 10000.0f;
@@ -120,6 +123,7 @@ Shader "Unlit/CloudShader"
 				#pragma vertex vert
 				#pragma fragment frag
 
+				#include "./CloudShaderHelper.cginc"
 				#include "UnityCG.cginc"
 				#include "Lighting.cginc"
 
@@ -185,6 +189,8 @@ Shader "Unlit/CloudShader"
 					return valid.x * valid.y;
 				}
 
+				#define MIN_SAMPLE_COUNT 160
+				#define MAX_SAMPLE_COUNT 192
 				half4 frag(v2f i) : SV_Target
 				{
 					half outOfBound;
@@ -192,8 +198,18 @@ Shader "Unlit/CloudShader"
 					float depth = currSample.g;
 					half4 result = currSample;
 
-					float3 vspos = float3(i.vsray, 1.0) * depth;
-					half4 prevSample = SamplePrev(i.uv, vspos, outOfBound);
+					float3 vspos = float3(i.vsray, 1.0);
+					half4 prevSample = SamplePrev(i.uv, vspos * depth, outOfBound);
+
+					if (outOfBound > 0.0f) {	//This should be switch-able.
+						float4 worldPos = mul(unity_CameraToWorld, float4(vspos, 1.0));
+						worldPos /= worldPos.w;
+						float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
+						int sample_count = lerp(MAX_SAMPLE_COUNT, MIN_SAMPLE_COUNT, viewDir.y);	//dir.y ==0 means horizontal, use maximum sample count
+						float intensity, depth;
+						float density = GetDentisy(worldPos, viewDir, 100000, sample_count, 0.0f, intensity, depth);
+						result = float4(intensity, depth, 1, density);
+					}
 
 					//Correct means the how believable the low-res buffer is.
 					//On points the low-res buffer hit, or can't find from previous full frame correct, will be 1.0
@@ -260,7 +276,6 @@ Shader "Unlit/CloudShader"
 					half4 currSample = tex2D(_CloudTex, i.uv);
 
 					float depth = currSample.g;
-					float atmosphericBlendFactor = saturate(pow(depth / _AtmosphereColorSaturateDistance, 0.6));
 					
 					float3 sunColor;
 #ifdef USE_YANGRC_AP
@@ -301,6 +316,7 @@ Shader "Unlit/CloudShader"
 
 					result.rgb = result.rgb * transmittanceToTarget + scatteringBetween;
 #else
+					float atmosphericBlendFactor = saturate(pow(depth / _AtmosphereColorSaturateDistance, 0.6));
 					result.rgb = lerp(result.rgb, _AtmosphereColor * currSample.a, saturate(atmosphericBlendFactor));
 #endif
 

@@ -37,7 +37,7 @@ namespace Yangrc.VolumeCloud {
         };
 
         static int[] haltonSequence = {
-            8, 4, 12, 2, 10, 6, 14, 1
+            8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15
         };
 
         void EnsureMaterial(bool force = false) {
@@ -94,7 +94,7 @@ namespace Yangrc.VolumeCloud {
             float offsetY = offset[frameIndex, 1];
             //GetProjectionExtents will offset the camera "window".
             mat.SetVector("_ProjectionExtents", mcam.GetProjectionExtents(offsetX * (1 << downSample), offsetY * (1 << downSample)));
-            mat.SetFloat("_RaymarchOffset", (haltonSequence[haltonSequenceIndex] / 16.0f));
+            mat.SetFloat("_RaymarchOffset", (haltonSequence[haltonSequenceIndex] / 16.0f + bayerOffsets[offset[frameIndex, 0], offset[frameIndex, 0]]));
             Graphics.Blit(null, lowresBuffer, mat, 0);
         
             //2. Blit low-res buffer with previous image to make full-res result.
