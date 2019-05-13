@@ -45,7 +45,7 @@ float _ExtinctionCoefficient;
 float _SilverIntensity;
 float _SilverSpread;
 
-float SampleDensity(float3 worldPos, int lod, bool cheap);
+float SampleDensity(float3 worldPos, int lod, bool cheap, out float wetness);
 
 float Remap(float original_value, float original_min, float original_max, float new_min, float new_max)
 {
@@ -103,7 +103,7 @@ float HenryGreenstein(float g, float cosTheta) {
 	return k * (1.0 + cosTheta * cosTheta) / pow(abs(1.0 + g * g - 2.0 * g * cosTheta), 1.5);
 }
 
-float SampleDensity(float3 worldPos,int lod, bool cheap) {
+float SampleDensity(float3 worldPos,int lod, bool cheap, out float wetness) {
 	//Store the pos without wind applied.
 	float3 unwindWorldPos = worldPos;
 	
@@ -112,12 +112,11 @@ float SampleDensity(float3 worldPos,int lod, bool cheap) {
 	coverageSampleUV.xy = (coverageSampleUV.xy + 0.5);
 	float3 weatherData = tex2Dlod(_WeatherTex, coverageSampleUV);
 	weatherData *= float3(_CloudCoverageModifier, 1.0, _CloudTypeModifier);
-	float coverage = weatherData.r;
-	float cloudType = weatherData.b;
+	float cloudType = weatherData.r;
+	wetness = weatherData.g;
 
 	//Calculate the normalized height between[0,1]
 	float heightPercent = HeightPercent(worldPos);
-	heightPercent = saturate(heightPercent - weatherData.g / 5);	//Don't lift cloud too much, it looks silly.
 	if (heightPercent <= 0.0f || heightPercent >= 1.0f)
 		return 0.0;
 
@@ -132,12 +131,9 @@ float SampleDensity(float3 worldPos,int lod, bool cheap) {
 	//Sample Height-Density map.
 	float2 densityAndErodeness = tex2D(_HeightDensity, float2(cloudType, heightPercent)).rg;
 
-	//Multiply the result to density.
-	sampleResult *= densityAndErodeness.x;
-
 	//Clip the result using coverage map.
-	sampleResult = RemapClamped(sampleResult, 1.0 - coverage, 1.0, 0.0, 1.0);
-	sampleResult *= coverage;
+	sampleResult = RemapClamped(sampleResult, 1.0 - densityAndErodeness.x, 1.0, 0.0, 1.0);
+	sampleResult *= densityAndErodeness.x;
 	//sampleResult = pow(sampleResult, .8);
 	if (!cheap) {
 		float2 curl_noise = tex2Dlod(_CurlNoise, float4(unwindWorldPos.xz / _CloudSize * _CurlTile, 0.0, 1.0)).rg;
@@ -150,7 +146,7 @@ float SampleDensity(float3 worldPos,int lod, bool cheap) {
 
 		//On cloud marked with low erodness, we see cauliflower style, so when doing erodness, we use 1.0f - detail.
 		//On cloud marked with high erodness, we see thin line style, so when doing erodness we use detail.
-		float detail_modifier = lerp(1.0f - detailsampleResult, detailsampleResult, heightPercent);
+		float detail_modifier = lerp(1.0f - detailsampleResult, detailsampleResult, densityAndErodeness.y);
 		sampleResult = RemapClamped(sampleResult, min(0.8, detail_modifier * _DetailStrength), 1.0, 0.0, 1.0);
 	}
 
@@ -191,7 +187,8 @@ float SampleOpticsDistanceToSun(float3 worldPos) {
 	for (int i = 0; i < 5; i++) {
 		half3 direction = _WorldSpaceLightPos0;
 		float3 samplePoint = worldPos + direction * shadowSampleDistance[i] * TRANSMITTANCE_SAMPLE_STEP;
-		float sampleResult = SampleDensity(samplePoint, mipmapOffset, true);
+		float wetness;
+		float sampleResult = SampleDensity(samplePoint, mipmapOffset, true, wetness);
 		opticsDistance += shadowSampleContribution[i] * TRANSMITTANCE_SAMPLE_STEP * sampleResult;
 		mipmapOffset += 0.5;
 	}
@@ -291,17 +288,21 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, int sample
 	float raymarchDistance = raymarchOffset * sample_step;
 	[loop]
 	for (int j = 0; j < sample_count; j++) {
+		float wetness;
 		float3 rayPos = sampleStart + dir * raymarchDistance;
-		float cheapResult = SampleDensity(rayPos, 0, true);
+		if (raymarchDistance > maxSampleDistance) {
+			break;
+		}
+		float cheapResult = SampleDensity(rayPos, 0, true, wetness);
 		detailedSample = cheapResult > 0.0f;
 		if (detailedSample) {
-			float density = SampleDensity(rayPos, 0, false);
+			float density = SampleDensity(rayPos, 0, false, wetness);
 			float extinction = _ExtinctionCoefficient * density;
 
 			float clampedExtinction = max(extinction, 1e-7);
 			float transmittance = exp(-extinction * sample_step);
 				
-			float luminance = SampleEnergy(rayPos, dir);
+			float luminance = SampleEnergy(rayPos, dir) * lerp(1.0f, 0.3f, wetness);
 			float integScatt = (luminance - luminance * transmittance) / clampedExtinction;
 
 			intensity += intTransmittance * integScatt;

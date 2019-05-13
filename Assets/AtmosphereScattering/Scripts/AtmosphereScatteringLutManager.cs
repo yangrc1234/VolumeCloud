@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 using UnityEngine;
 
 namespace Yangrc.AtmosphereScattering {
-
+    [ExecuteInEditMode]
     public class AtmosphereScatteringLutManager : MonoBehaviour , ProgressiveLutUpdater.ITimeLogger{
         public static AtmosphereScatteringLutManager instance {
             get {
@@ -45,12 +45,15 @@ namespace Yangrc.AtmosphereScattering {
             pingPongUpdaters[0] = temp;
         }
 
-        private void Start() {
-            if (computeShader == null) {
-                throw new System.InvalidOperationException("Compute shader not set!");
-            }
+        private void Awake() {
             if (_instance != null) {
                 throw new System.InvalidOperationException("AtmosphereScatteringLutManager already exists!");
+            }
+        }
+
+        private void OnEnable() {
+            if (computeShader == null) {
+                throw new System.InvalidOperationException("Compute shader not set!");
             }
             _instance = this;
             AtmLutHelper.Init(computeShader);
@@ -100,7 +103,7 @@ namespace Yangrc.AtmosphereScattering {
                 Shader.SetGlobalFloat("_LerpValue", lerpValue);
         }
 
-        private void OnDestroy() {
+        private void OnDisable() {
             for (int i = 0; i < pingPongUpdaters.Length; i++) {
                 pingPongUpdaters[i].Cleanup();
             }

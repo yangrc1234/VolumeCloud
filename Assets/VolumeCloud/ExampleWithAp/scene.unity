@@ -26,7 +26,7 @@ RenderSettings:
   m_AmbientIntensity: 1
   m_AmbientMode: 0
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
-  m_SkyboxMaterial: {fileID: 10304, guid: 0000000000000000f000000000000000, type: 0}
+  m_SkyboxMaterial: {fileID: 172616242}
   m_HaloStrength: 0.5
   m_FlareStrength: 1
   m_FlareFadeSpeed: 3
@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 49040651}
-  m_IndirectSpecularColor: {r: 0.18348068, g: 0.22904924, b: 0.30581862, a: 1}
+  m_IndirectSpecularColor: {r: 0.042962633, g: 0.073647216, b: 0.13200998, a: 1}
 --- !u!157 &3
 LightmapSettings:
   m_ObjectHideFlags: 0
@@ -172,13 +172,13 @@ Transform:
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 49040650}
-  m_LocalRotation: {x: -0.40241328, y: 0.38058224, z: -0.8293063, w: 0.07397083}
+  m_LocalRotation: {x: -0.0625724, y: 0.46280843, z: -0.8764727, w: -0.1169992}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 1
-  m_LocalEulerAnglesHint: {x: 34.869003, y: -298.1, z: 211.525}
+  m_LocalEulerAnglesHint: {x: 55.682003, y: -359.859, z: 164.86801}
 --- !u!114 &49040653
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -191,6 +191,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   basePosition: {x: 0, y: 2000, z: 0}
+--- !u!21 &172616242
+Material:
+  serializedVersion: 6
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_Name: Skybox/AtmosphereScatteringPrecomputed
+  m_Shader: {fileID: 4800000, guid: e2088dd19a71d1244976cd0de1ff68a7, type: 3}
+  m_ShaderKeywords: 
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Floats: []
+    m_Colors: []
 --- !u!1 &1358543451
 GameObject:
   m_ObjectHideFlags: 0
@@ -347,7 +367,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   configuration: {fileID: 11400000, guid: a15886e93ac3e7847861da392782f13d, type: 2}
-  downSample: 0
+  downSample: 1
 --- !u!114 &1748146235
 MonoBehaviour:
   m_ObjectHideFlags: 0

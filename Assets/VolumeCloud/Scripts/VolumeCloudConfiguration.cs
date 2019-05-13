@@ -15,7 +15,7 @@ namespace Yangrc.VolumeCloud {
         [Header("Shape - Detail")]
         [Range(0, 80)]
         public float detailTile = 36.0f;
-        [Range(0, 3)]
+        [Range(.01f, .8f)]
         public float detailStrength = 1.0f;
 
         [Header("Shape - Curl")]
@@ -38,9 +38,9 @@ namespace Yangrc.VolumeCloud {
         [Header("Lighting")]
         public Color ambientColor = new Color(214, 37, 154);
         public const float COEFFICIENT_SCALE = 1e-2f;
-        [Range(0.1f, 10)]
+        [Range(0.1f, 2.0f)]
         public float scatteringCoefficient = 4f;
-        [Range(0.1f, 10)]
+        [Range(0.1f, 2.0f)]
         public float extinctionCoefficient = 4f;
 
         [Header("Lighting - Multi Scattering Approximation")]
