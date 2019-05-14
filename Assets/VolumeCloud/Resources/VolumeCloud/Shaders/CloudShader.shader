@@ -63,8 +63,8 @@ Shader "Unlit/CloudShader"
 			#define MAX_SAMPLE_COUNT 96
 			sampler2D _BlueNoise;
 			sampler2D _CameraDepthTexture;
-			float4 _ProjectionExtents;
 			float _RaymarchOffset;
+			float4 _ProjectionExtents;
 
 			struct appdata
 			{
@@ -92,6 +92,7 @@ Shader "Unlit/CloudShader"
 
 			float4 frag (Interpolator i) : SV_Target
 			{
+				return 1.0f;
 				float3 vspos = float3(i.vsray, 1.0);
 				float4 worldPos = mul(unity_CameraToWorld,float4(vspos,1.0));
 				worldPos /= worldPos.w;
@@ -107,7 +108,7 @@ Shader "Unlit/CloudShader"
 				float intensity;
 				float depth;
 				int sample_count = lerp(MAX_SAMPLE_COUNT, MIN_SAMPLE_COUNT, viewDir.y);	//dir.y ==0 means horizontal, use maximum sample count
-				float density = GetDentisy(worldPos, viewDir, 100000, sample_count, fmod(_RaymarchOffset, 1.0), intensity, depth);
+				float density = GetDentisy(worldPos, viewDir, depthValue, sample_count, fmod(_RaymarchOffset, 1.0), intensity, depth);
 
 				/*RGBA: direct intensity, depth(this is differenct from the slide), ambient, alpha*/
 				//return depth / 10000.0f;
@@ -137,6 +138,7 @@ Shader "Unlit/CloudShader"
 				half3 _AtmosphereColor;
 				float _AtmosphereColorSaturateDistance;
 				half3 _AmbientColor;
+				float _RaymarchOffset;
 
 				float4 debug;
 
@@ -151,6 +153,7 @@ Shader "Unlit/CloudShader"
 					float4 vertex : SV_POSITION;
 					float2 uv : TEXCOORD0;
 					float2 vsray : TEXCOORD1;
+					float4 screenPos : TEXCOORD2;
 				};
 
 				v2f vert(appdata v)
@@ -159,10 +162,12 @@ Shader "Unlit/CloudShader"
 					o.vertex = UnityObjectToClipPos(v.vertex);
 					o.uv = v.uv;
 					o.vsray = (2.0 * v.uv - 1.0) * _ProjectionExtents.xy + _ProjectionExtents.zw;
+					o.screenPos = ComputeScreenPos(o.vertex);
 					return o;
 				}
 
-				half4 SamplePrev(float2 uv,float3 vspos,out half outOfBound) {
+
+				half4 SamplePrev(float3 vspos,out half outOfBound) {
 					float4 wspos = mul(unity_CameraToWorld,float4(vspos,1.0));
 					float4 prevUV = mul(_PrevVP, wspos);
 					prevUV.xy = 0.5 * (prevUV.xy / prevUV.w) + 0.5;
@@ -181,41 +186,40 @@ Shader "Unlit/CloudShader"
 
 				half CurrentCorrect(float2 uv,float2 jitter) {
 					float2 texelRelativePos = fmod(uv * _MainTex_TexelSize.zw, 4);//between (0, 4.0)
-
 					texelRelativePos -= jitter;
 					float2 valid = saturate(2 * (0.5 - abs(texelRelativePos - 0.5)));
 					return valid.x * valid.y;
-
-					return valid.x * valid.y;
 				}
-
-				#define MIN_SAMPLE_COUNT 160
-				#define MAX_SAMPLE_COUNT 192
+				
+				#define MIN_SAMPLE_COUNT 16
+				#define MAX_SAMPLE_COUNT 32
+				#define OOB_SAMPLE_COUNT 128
 				half4 frag(v2f i) : SV_Target
 				{
-					half outOfBound;
-					float4 currSample = SampleCurrent(i.uv);
-					float depth = currSample.g;
-					half4 result = currSample;
-
-					float3 vspos = float3(i.vsray, 1.0);
-					half4 prevSample = SamplePrev(i.uv, vspos * depth, outOfBound);
-
-					if (outOfBound > 0.0f) {	//This should be switch-able.
-						float4 worldPos = mul(unity_CameraToWorld, float4(vspos, 1.0));
-						worldPos /= worldPos.w;
-						float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
-						int sample_count = lerp(MAX_SAMPLE_COUNT, MIN_SAMPLE_COUNT, viewDir.y);	//dir.y ==0 means horizontal, use maximum sample count
-						float intensity, depth;
-						float density = GetDentisy(worldPos, viewDir, 100000, sample_count, 0.0f, intensity, depth);
-						result = float4(intensity, depth, 1, density);
+					float depthValue = LinearEyeDepth(tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(i.screenPos)).r);
+					//return depthValue;
+					if (depthValue > _ProjectionParams.z - 1) {	//it's far plane.
+						depthValue += 100000;		//makes it work even with very low far plane value.
 					}
 
-					//Correct means the how believable the low-res buffer is.
-					//On points the low-res buffer hit, or can't find from previous full frame correct, will be 1.0
-					half correct = max(.1 * CurrentCorrect(i.uv, _Jitter), outOfBound);
+					float3 vspos = float3(i.vsray, 1.0);
 
-					return lerp(prevSample, result, correct);
+					float4 worldPos = mul(unity_CameraToWorld, float4(vspos, 1.0));
+					worldPos /= worldPos.w;
+					float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
+					int sample_count = lerp(MAX_SAMPLE_COUNT, MIN_SAMPLE_COUNT, viewDir.y);	//dir.y ==0 means horizontal, use maximum sample count
+					float intensity, depth;
+					float density = GetDentisy(worldPos, viewDir, depthValue, sample_count, 2.0f * _RaymarchOffset, intensity, depth);
+					float4 raymarchResult = float4(intensity, depth, 1, density);
+
+					half outOfBound;
+					half4 prevSample = SamplePrev(vspos * depth, outOfBound);
+					if (outOfBound > 0.5f) {
+						float density = GetDentisy(worldPos, viewDir, depthValue, OOB_SAMPLE_COUNT, 0.0f, intensity, depth);
+						raymarchResult = float4(intensity, depth, 1, density);
+					}
+
+					return lerp(prevSample, raymarchResult, max(0.05f, outOfBound));
 				}
 				ENDCG
 		}

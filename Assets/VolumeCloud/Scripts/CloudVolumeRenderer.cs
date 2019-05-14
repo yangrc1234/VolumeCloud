@@ -82,9 +82,9 @@ namespace Yangrc.VolumeCloud {
             EnsureRenderTarget(ref lowresBuffer, width /4 , height/4, RenderTextureFormat.ARGBFloat, FilterMode.Bilinear);
 
             frameIndex = (frameIndex + 1)% 16;
-            if (frameIndex == 0) {
-                haltonSequenceIndex = (haltonSequenceIndex + 1) % haltonSequence.Length;
-            }
+            //if (frameIndex == 0) {
+            haltonSequenceIndex = (haltonSequenceIndex + 1) % haltonSequence.Length;
+            //}
             fullBufferIndex = (fullBufferIndex + 1) % 2;
 
             /* Some code is from playdead TAA. */
@@ -94,7 +94,7 @@ namespace Yangrc.VolumeCloud {
             float offsetY = offset[frameIndex, 1];
             //GetProjectionExtents will offset the camera "window".
             mat.SetVector("_ProjectionExtents", mcam.GetProjectionExtents(offsetX * (1 << downSample), offsetY * (1 << downSample)));
-            mat.SetFloat("_RaymarchOffset", (haltonSequence[haltonSequenceIndex] / 16.0f + bayerOffsets[offset[frameIndex, 0], offset[frameIndex, 0]]));
+            mat.SetFloat("_RaymarchOffset", (haltonSequence[haltonSequenceIndex] / 16.0f));
             Graphics.Blit(null, lowresBuffer, mat, 0);
         
             //2. Blit low-res buffer with previous image to make full-res result.

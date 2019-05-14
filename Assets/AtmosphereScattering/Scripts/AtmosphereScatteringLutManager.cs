@@ -13,7 +13,7 @@ namespace Yangrc.AtmosphereScattering {
             }
         }
         private static AtmosphereScatteringLutManager _instance;
-
+        public bool progressiveUpdate;
         [SerializeField]
         private ComputeShader computeShader;
         [SerializeField]
@@ -80,7 +80,7 @@ namespace Yangrc.AtmosphereScattering {
 
         private float lerpValue = 0.0f;
         private void Update() {
-            if (!pingPongUpdaters[0].working) {
+            if (!pingPongUpdaters[0].working && progressiveUpdate) {
                 //Use the finished luts.
                 UpdateSkyboxMaterial(pingPongUpdaters[0], pingPongUpdaters[1]);
 

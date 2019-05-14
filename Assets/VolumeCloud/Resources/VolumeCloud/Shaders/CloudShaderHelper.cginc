@@ -112,8 +112,9 @@ float SampleDensity(float3 worldPos,int lod, bool cheap, out float wetness) {
 	coverageSampleUV.xy = (coverageSampleUV.xy + 0.5);
 	float3 weatherData = tex2Dlod(_WeatherTex, coverageSampleUV);
 	weatherData *= float3(_CloudCoverageModifier, 1.0, _CloudTypeModifier);
-	float cloudType = weatherData.r;
-	wetness = weatherData.g;
+	float cloudCoverage = RemapClamped(weatherData.r, 0.0 ,1.0, 0.3, 1.0);
+	float cloudType = weatherData.b;
+	wetness = 1.0f;
 
 	//Calculate the normalized height between[0,1]
 	float heightPercent = HeightPercent(worldPos);
@@ -125,16 +126,17 @@ float SampleDensity(float3 worldPos,int lod, bool cheap, out float wetness) {
 	worldPos = ApplyWind(worldPos);
 	tempResult = tex3Dlod(_BaseTex, half4(worldPos / _CloudSize * _BaseTile, lod)).rgba;
 	float low_freq_fBm = (tempResult.g * .625) + (tempResult.b * 0.25) + (tempResult.a * 0.125);
-	float sampleResult = RemapClamped(tempResult.r, 0.0, .8, .0, 1.0);	//perlin-worley
+	float sampleResult = RemapClamped(tempResult.r, 0.0, .1, .0, 1.0);	//perlin-worley
 	sampleResult = RemapClamped(low_freq_fBm, -0.5 * sampleResult, 1.0, 0.0, 1.0);
 
 	//Sample Height-Density map.
 	float2 densityAndErodeness = tex2D(_HeightDensity, float2(cloudType, heightPercent)).rg;
 
-	//Clip the result using coverage map.
-	sampleResult = RemapClamped(sampleResult, 1.0 - densityAndErodeness.x, 1.0, 0.0, 1.0);
 	sampleResult *= densityAndErodeness.x;
-	//sampleResult = pow(sampleResult, .8);
+	//Clip the result using coverage map.
+	sampleResult = RemapClamped(sampleResult, 1.0 - cloudCoverage.x, 1.0, 0.0, 1.0);
+	sampleResult *= cloudCoverage.x;
+
 	if (!cheap) {
 		float2 curl_noise = tex2Dlod(_CurlNoise, float4(unwindWorldPos.xz / _CloudSize * _CurlTile, 0.0, 1.0)).rg;
 		worldPos.xz += curl_noise.rg * (1.0 - heightPercent) * _CloudSize * _CurlStrength;
