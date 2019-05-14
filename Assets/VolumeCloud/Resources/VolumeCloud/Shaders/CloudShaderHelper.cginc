@@ -322,5 +322,8 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, int sample
 	if (depth == 0.0f) {
 		depth = length(sampleEnd - startPos);
 	}
-	return 1.0f - intTransmittance;
+	//The calculation above will never make intTransmittance to acutally 0.0f(mathematically)
+	//and we will never have cloud alpha == 1.0f then. (e.g., the direct sun will shine through cloud even when the transmittance is near 0)
+	//To make it simpler, just make sure when transmittance is very close to 0.0f, just treat alpha as 1.0f.
+	return saturate(1.001f - intTransmittance);	
 }
