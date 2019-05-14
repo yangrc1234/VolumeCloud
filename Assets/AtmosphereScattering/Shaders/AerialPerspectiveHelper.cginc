@@ -124,7 +124,8 @@ float3 EvaluateSunDiskRadianceOfUnitRadiance(AtmosphereParameters atm, float r, 
 	//Evaluate sun's solid angle by formula omega = 2 * PI * ( 1 - cos(sun_angular_radius)) (https://en.wikipedia.org/wiki/Solid_angle)
 	float cos_sun_angular_radius = cos(atm.sun_angular_radius);
 	float radianceTransmitted = max(0.0f, (nu - cos_sun_angular_radius) / (1.0f - cos_sun_angular_radius));
-	return _SunRadianceOnAtm * radianceTransmitted;
+	float solidAngle = 2 * 3.1415926 * (1 - cos_sun_angular_radius);
+	return _SunRadianceOnAtm * radianceTransmitted / solidAngle;
 }
 
 
