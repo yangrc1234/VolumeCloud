@@ -93,12 +93,10 @@ Shader "Unlit/CloudShader"
 				float3 vspos = float3(i.vsray, 1.0);
 				float4 worldPos = mul(unity_CameraToWorld,float4(vspos,1.0));
 				worldPos /= worldPos.w;
-				float depthValue = LinearEyeDepth(tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(i.screenPos)).r); 
-				//return depthValue;
-				if (depthValue > _ProjectionParams.z - 1) {	//it's far plane.
-					depthValue += 100000;		//makes it work even with very low far plane value.
+				float sceneDepth = LinearEyeDepth(tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(i.screenPos)).r); 
+				if (sceneDepth > _ProjectionParams.z - 1) {	//it's far plane.
+					sceneDepth += 100000;		//makes it work even with very low far plane value.
 				}
-
 				float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
 				int sample_count = lerp(MAX_SAMPLE_COUNT, MIN_SAMPLE_COUNT, viewDir.y);	//dir.y ==0 means horizontal, use maximum sample count
 
@@ -108,12 +106,13 @@ Shader "Unlit/CloudShader"
 				float offset = -fmod(_RaymarchOffset + bayerOffset, 1.0f)* 2.0f;
 
 				float intensity;
-				float depth;
-				float density = GetDentisy(worldPos, viewDir, depthValue, sample_count, offset, intensity, depth);
+				float distance;
+				//TODO: sceneDepth here is distance in camera z-axis, but the parameter should be real distance, fix it.
+				float density = GetDentisy(worldPos, viewDir, sceneDepth, sample_count, offset, intensity, distance);
 
 				/*RGBA: direct intensity, depth(this is differenct from the slide), ambient, alpha*/
 				//return depth / 10000.0f;
-				return float4(intensity, depth, /*ambient haven't implemented yet */1, density);
+				return float4(intensity, distance, /*ambient haven't implemented yet */1, density);
 			}
 
 			ENDCG
@@ -195,14 +194,14 @@ Shader "Unlit/CloudShader"
 					}
 
 					float3 vspos = float3(i.vsray, 1.0);
-					float4 worldPos = mul(unity_CameraToWorld, float4(vspos, 1.0));
+					float4 worldPos = mul(unity_CameraToWorld, float4(vspos, 1.0f));
 					worldPos /= worldPos.w;
 					float4 raymarchResult = tex2D(_LowresCloudTex, i.uv);
-					float depth = raymarchResult.y;
+					float depth = raymarchResult.y;	//The depth here is actually radial distance.
 					float intensity = raymarchResult.x;
 
 					half outOfBound;
-					float2 prevUV = PrevUV(mul(unity_CameraToWorld, float4(vspos * depth, 1.0)), outOfBound);
+					float2 prevUV = PrevUV(mul(unity_CameraToWorld, float4(normalize(vspos) * depth, 1.0)), outOfBound);
 					
 					if (outOfBound > 0.5f) {	//Previous sample is out of bound ,do a high sample count to fix it.
 						float2 screenPos = i.screenPos.xy / i.screenPos.w;
@@ -211,6 +210,7 @@ Shader "Unlit/CloudShader"
 						float offset = bayerOffset * 2.0f;
 
 						float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
+						//TODO: sceneDepth here is distance in camera z-axis, but the parameter should be real distance, fix it.
 						float density = GetDentisy(worldPos, viewDir, sceneDepth, OOB_SAMPLE_COUNT, offset, intensity, depth);
 						raymarchResult = float4(intensity, depth, 1, density);
 					}
