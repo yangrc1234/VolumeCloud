@@ -276,7 +276,7 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, int sample
 		return 0;
 	}
 
-	float sample_step = min(length(sampleEnd - sampleStart) / sample_count, 2000);
+	float sample_step = min(length(sampleEnd - sampleStart) / sample_count, 1000);
 	depth = 0.0f;
 
 	if (sampleStart.y < -200) {	//Below horizon.
@@ -322,7 +322,7 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, int sample
 
 	depth /= depthweightsum;
 	if (depth == 0.0f) {
-		depth = sampleEnd;
+		depth = length(sampleEnd - startPos);
 	}
 
 	return (1.0f - intTransmittance);	
