@@ -98,12 +98,12 @@ Shader "Unlit/CloudShader"
 					sceneDepth += 100000;		//makes it work even with very low far plane value.
 				}
 				float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
-				int sample_count = lerp(MAX_SAMPLE_COUNT, MIN_SAMPLE_COUNT, viewDir.y);	//dir.y ==0 means horizontal, use maximum sample count
+				int sample_count = lerp(MAX_SAMPLE_COUNT, MIN_SAMPLE_COUNT, abs(viewDir.y));	//dir.y ==0 means horizontal, use maximum sample count
 
 				float2 screenPos = i.screenPos.xy / i.screenPos.w;
-				int2 texelID = int2(fmod((screenPos + _Time.y )/ _TexelSize , 3.0));
+				int2 texelID = int2(fmod((screenPos + _Time.y)/ _TexelSize , 3.0));
 				float bayerOffset = (bayerOffsets[texelID.x][texelID.y]) / 9.0f;
-				float offset = -fmod(_RaymarchOffset + bayerOffset, 1.0f)* 2.0f;
+				float offset = -fmod(_RaymarchOffset + bayerOffset, 1.0f);
 
 				float intensity;
 				float distance;
@@ -183,6 +183,23 @@ Shader "Unlit/CloudShader"
 					float2 valid = saturate(2 * (0.5 - abs(texelRelativePos - 0.5)));
 					return valid.x * valid.y;
 				}
+
+				half4 ClipAABB(half4 aabbMin, half4 aabbMax, half4 prevSample)
+				{
+					// note: only clips towards aabb center (but fast!)
+					half4 p_clip = 0.5 * (aabbMax + aabbMin);
+					half4 e_clip = 0.5 * (aabbMax - aabbMin);
+
+					half4 v_clip = prevSample - p_clip;
+					half4 v_unit = v_clip / e_clip;
+					half4 a_unit = abs(v_unit);
+					float ma_unit = max(max(a_unit.x, max(a_unit.y, a_unit.z)), a_unit.w);
+
+					if (ma_unit > 1.0)
+						return p_clip + v_clip / ma_unit;
+					else
+						return prevSample;// point inside aabb
+				}
 				
 				#define OOB_SAMPLE_COUNT 128
 				half4 frag(v2f i) : SV_Target
@@ -214,29 +231,48 @@ Shader "Unlit/CloudShader"
 						float density = GetDentisy(worldPos, viewDir, sceneDepth, OOB_SAMPLE_COUNT, offset, intensity, depth);
 						raymarchResult = float4(intensity, depth, 1, density);
 					}
-					else {
+					else {	//Do temporal reprojection and clip things.
 						half4 prevSample = tex2D(_MainTex, prevUV);
 						float2 xoffset = float2(_LowresCloudTex_TexelSize.x, 0.0f);
 						float2 yoffset = float2(0.0f, _LowresCloudTex_TexelSize.y);
-						half4 left = tex2Dlod(_LowresCloudTex, float4(i.uv - xoffset, 0.0, 0.0));
-						half4 right = tex2Dlod(_LowresCloudTex, float4(i.uv + xoffset, 0.0, 0.0));
-						half4 bot = tex2Dlod(_LowresCloudTex, float4(i.uv - yoffset, 0.0, 0.0));
-						half4 top = tex2Dlod(_LowresCloudTex, float4(i.uv + yoffset, 0.0, 0.0));
 
-						half4 tl = tex2Dlod(_LowresCloudTex, float4(i.uv - xoffset - yoffset, 0.0, 0.0));
-						half4 tr = tex2Dlod(_LowresCloudTex, float4(i.uv - xoffset + yoffset, 0.0, 0.0));
-						half4 bl = tex2Dlod(_LowresCloudTex, float4(i.uv + xoffset - yoffset , 0.0, 0.0));
-						half4 br = tex2Dlod(_LowresCloudTex, float4(i.uv + xoffset + yoffset, 0.0, 0.0));
+						half4 mins = raymarchResult;
+						half4 maxs = raymarchResult;
 
-						half4 mins = min(left, min(right, min(bot, top)));
-						half4 maxs = max(left, max(right, max(bot, top)));
-
-						half4 mins2 = min(tl, min(tr, min(bl, br)));
-						half4 maxs2 = max(tl, max(tr, max(bl, br)));
-						mins = min(mins, mins2);
-						maxs = max(maxs, maxs2);
-
+						float4 m1 = 0.0f, m2 = 0.0f;
+						[unroll]
+						for (int x = -1; x <= 1; x ++) {
+							[unroll]
+							for (int y = -1; y <= 1; y ++ ) {
+								half4 val;
+								if (x == 0 && y == 0) {
+									val = raymarchResult;
+								}
+								else {
+									val = tex2Dlod(_LowresCloudTex, float4(i.uv + xoffset * x + yoffset * y, 0.0, 0.0));
+								}
+								if (val.w == 0.0f) {
+									val = raymarchResult;
+								}
+								mins = min(val, mins);
+								maxs = max(val, maxs);
+								m1 += val;
+								m2 += val * val;
+							}
+						}
+#if 1
+						//Ghosting effect is serious. But works perfectly well with static cloud.
 						prevSample = clamp(mins, maxs, prevSample);
+#else
+						//This is still in experiment. Code from https://zhuanlan.zhihu.com/p/64993622.
+						//The result contains lots of noise even when camera stops move, don't know why.
+						float4 gamma = (15.0f, 1.0f, 1.0f, 5.0f);
+						float4 mu = m1 / 9;
+						float4 sigma = sqrt(abs(m2 / 9 - mu * mu));
+						float4 minc = mu - gamma * sigma;
+						float4 maxc = mu + gamma * sigma;
+						prevSample = ClipAABB(minc, maxc, prevSample);	
+#endif	
 						raymarchResult = lerp(prevSample, raymarchResult, max(0.02f, outOfBound));
 					}
 
@@ -300,7 +336,8 @@ Shader "Unlit/CloudShader"
 					half4 mcol = tex2D(_MainTex,i.uv);
 					half4 currSample = tex2D(_CloudTex, i.uv);
 
-					float depth = currSample.g;
+					half depth = currSample.g;
+					//return depth;
 					
 					float3 sunColor;
 #ifdef USE_YANGRC_AP

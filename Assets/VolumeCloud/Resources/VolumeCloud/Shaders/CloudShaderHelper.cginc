@@ -276,11 +276,10 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, int sample
 		return 0;
 	}
 
-	float sample_step = min(length(sampleEnd - sampleStart) / sample_count, 500);
-
+	float sample_step = min(length(sampleEnd - sampleStart) / sample_count, 2000);
 	depth = 0.0f;
 
-	if (sampleStart.y < -200) {
+	if (sampleStart.y < -200) {	//Below horizon.
 		intensity = 0.0;
 		return 0.0;
 	}
@@ -294,42 +293,37 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, int sample
 	float depthweightsum = 0.00001f;
 
 	float raymarchDistance = raymarchOffset * sample_step;
+
 	[loop]
-	for (int j = 0; j < sample_count; j++) {
+	for (int j = 0; j < sample_count; j++, raymarchDistance += sample_step) {
 		float wetness;
 		float3 rayPos = sampleStart + dir * raymarchDistance;
 		if (raymarchDistance > maxSampleDistance) {
 			break;
 		}
-		float cheapResult = SampleDensity(rayPos, 0, true, wetness);
-		detailedSample = cheapResult > 0.0f;
-		if (detailedSample) {
-			float density = SampleDensity(rayPos, 0, false, wetness);
-			float extinction = _ExtinctionCoefficient * density;
 
-			float clampedExtinction = max(extinction, 1e-7);
-			float transmittance = exp(-extinction * sample_step);
+		float density = SampleDensity(rayPos, 0, false, wetness);
+		if (density <= 0.0f)
+			continue;
+		float extinction = _ExtinctionCoefficient * density;
+
+		float clampedExtinction = max(extinction, 1e-7);
+		float transmittance = exp(-extinction * sample_step);
 				
-			float luminance = SampleEnergy(rayPos, dir) * lerp(1.0f, 0.3f, wetness);
-			float integScatt = (luminance - luminance * transmittance) / clampedExtinction;
+		float luminance = SampleEnergy(rayPos, dir) * lerp(1.0f, 0.3f, wetness);
+		float integScatt = (luminance - luminance * transmittance) / clampedExtinction;
 
-			intensity += intTransmittance * integScatt;
-			intTransmittance *= transmittance;
-			depth += intTransmittance * length(rayPos - startPos);
-			depthweightsum += intTransmittance;
-			raymarchDistance += sample_step;
-		}
-		else
-		{
-			raymarchDistance += sample_step * 2;
-		}
+		intensity += intTransmittance * integScatt;
+		depth += intTransmittance * length(rayPos - startPos);
+		depthweightsum += intTransmittance;
+
+		intTransmittance *= transmittance;
 	}
+
 	depth /= depthweightsum;
 	if (depth == 0.0f) {
-		depth = 1e10f;
+		depth = sampleEnd;
 	}
-	//The calculation above will never make intTransmittance to acutally 0.0f(mathematically)
-	//and we will never have cloud alpha == 1.0f then. (e.g., the direct sun will shine through cloud even when the transmittance is near 0)
-	//To make it simpler, just make sure when transmittance is very close to 0.0f, just treat alpha as 1.0f.
-	return saturate(1.001f - intTransmittance);	
+
+	return (1.0f - intTransmittance);	
 }
