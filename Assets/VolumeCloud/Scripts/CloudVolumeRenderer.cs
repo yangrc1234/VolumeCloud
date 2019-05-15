@@ -6,6 +6,26 @@ using UnityEngine;
 using UnityEngine.Rendering;
 
 namespace Yangrc.VolumeCloud {
+
+    [System.Serializable]
+    public class HaltonSequence {
+        public int radix = 3;
+        private int storedIndex = 0;
+        public float Get() {
+            float result = 0f;
+            float fraction = 1f / (float)radix;
+            int index = storedIndex;
+            while (index > 0) {
+                result += (float)(index % radix) * fraction;
+
+                index /= radix;
+                fraction /= (float)radix;
+            }
+            storedIndex++;
+            return result;
+        }
+    }
+
     [ImageEffectAllowedInSceneView]
     [ExecuteInEditMode,RequireComponent(typeof(Camera))]
         public class CloudVolumeRenderer : EffectBase {
@@ -17,28 +37,13 @@ namespace Yangrc.VolumeCloud {
         private RenderTexture lowresBuffer;
         private Matrix4x4 prevV;
         private Camera mcam;
-     
+        [SerializeField]
+        private HaltonSequence sequence;
+
         // The index of 4x4 pixels.
         private int frameIndex = 0;
-        private int haltonSequenceIndex = 0;
+        private float bayerOffsetIndex = 0;
 
-        static int[,] offset = {
-                    {2,1}, {1,2 }, {2,0}, {0,1},
-                    {2,3}, {3,2}, {3,1}, {0,3},
-                    {1,0}, {1,1}, {3,3}, {0,0},
-                    {2,2}, {1,3}, {3,0}, {0,2}
-                };
-
-        static int[,] bayerOffsets = {
-            {0,8,2,10 },
-            {12,4,14,6 },
-            {3,11,1,9 },
-            {15,7,13,5 }
-        };
-
-        static int[] haltonSequence = {
-            8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15
-        };
 
         void EnsureMaterial(bool force = false) {
             if (mat == null || force) {
@@ -79,26 +84,26 @@ namespace Yangrc.VolumeCloud {
             EnsureArray(ref fullBuffer, 2);
             EnsureRenderTarget(ref fullBuffer[0], width, height, RenderTextureFormat.ARGBHalf, FilterMode.Bilinear);
             EnsureRenderTarget(ref fullBuffer[1], width, height, RenderTextureFormat.ARGBHalf, FilterMode.Bilinear);
-            EnsureRenderTarget(ref lowresBuffer, width /4 , height/4, RenderTextureFormat.ARGBFloat, FilterMode.Bilinear);
+            EnsureRenderTarget(ref lowresBuffer, width , height, RenderTextureFormat.ARGBHalf, FilterMode.Bilinear);
 
             frameIndex = (frameIndex + 1)% 16;
             //if (frameIndex == 0) {
-            haltonSequenceIndex = (haltonSequenceIndex + 1) % haltonSequence.Length;
+            bayerOffsetIndex = (bayerOffsetIndex + 1.0f) % 3.0f;
             //}
             fullBufferIndex = (fullBufferIndex + 1) % 2;
 
             /* Some code is from playdead TAA. */
 
             //1. Render low-res buffer.
-            float offsetX = offset[frameIndex, 0];
-            float offsetY = offset[frameIndex, 1];
             //GetProjectionExtents will offset the camera "window".
-            mat.SetVector("_ProjectionExtents", mcam.GetProjectionExtents(offsetX * (1 << downSample), offsetY * (1 << downSample)));
-            mat.SetFloat("_RaymarchOffset", (haltonSequence[haltonSequenceIndex] / 16.0f));
+            mat.SetVector("_ProjectionExtents", mcam.GetProjectionExtents());
+            mat.SetFloat("_RaymarchOffset", sequence.Get());
+            mat.SetVector("_TexelSize", lowresBuffer.texelSize);
+            mat.SetFloat("_BayerMatrixOffset", bayerOffsetIndex);
+
             Graphics.Blit(null, lowresBuffer, mat, 0);
         
             //2. Blit low-res buffer with previous image to make full-res result.
-            mat.SetVector("_Jitter", new Vector2(offsetX, offsetY));
             mat.SetTexture("_LowresCloudTex", lowresBuffer);
             mat.SetMatrix("_PrevVP", GL.GetGPUProjectionMatrix(mcam.projectionMatrix,false) * prevV);
             mat.SetVector("_ProjectionExtents", mcam.GetProjectionExtents()); 

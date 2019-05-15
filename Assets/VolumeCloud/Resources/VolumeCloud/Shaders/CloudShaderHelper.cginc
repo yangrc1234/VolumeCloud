@@ -13,6 +13,12 @@
 
 #define TRANSMITTANCE_SAMPLE_STEP 256.0f
 
+static const float bayerOffsets[3][3] = {
+	{0, 7, 3},
+	{6, 5, 2},
+	{4, 1, 8}
+};
+
 //Base shape
 sampler3D _BaseTex;
 float _BaseTile;
@@ -320,7 +326,7 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, int sample
 	}
 	depth /= depthweightsum;
 	if (depth == 0.0f) {
-		depth = length(sampleEnd - startPos);
+		depth = 1e10f;
 	}
 	//The calculation above will never make intTransmittance to acutally 0.0f(mathematically)
 	//and we will never have cloud alpha == 1.0f then. (e.g., the direct sun will shine through cloud even when the transmittance is near 0)

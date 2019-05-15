@@ -57,15 +57,13 @@ Shader "Unlit/CloudShader"
 			#pragma multi_compile_fog
 			#include "./CloudShaderHelper.cginc"
 			#include "UnityCG.cginc"
-			#include "Lighting.cginc"
 
-			#define MIN_SAMPLE_COUNT 64
-			#define MAX_SAMPLE_COUNT 96
-			sampler2D _BlueNoise;
+			#define MIN_SAMPLE_COUNT 16
+			#define MAX_SAMPLE_COUNT 32
 			sampler2D _CameraDepthTexture;
 			float _RaymarchOffset;
 			float4 _ProjectionExtents;
-
+			float2 _TexelSize;
 			struct appdata
 			{
 				float4 vertex : POSITION;
@@ -92,7 +90,6 @@ Shader "Unlit/CloudShader"
 
 			float4 frag (Interpolator i) : SV_Target
 			{
-				return 1.0f;
 				float3 vspos = float3(i.vsray, 1.0);
 				float4 worldPos = mul(unity_CameraToWorld,float4(vspos,1.0));
 				worldPos /= worldPos.w;
@@ -101,14 +98,18 @@ Shader "Unlit/CloudShader"
 				if (depthValue > _ProjectionParams.z - 1) {	//it's far plane.
 					depthValue += 100000;		//makes it work even with very low far plane value.
 				}
-				float2 screenPos = i.screenPos.xy / i.screenPos.w;
-				//float noiseSample = (tex2D(_BlueNoise, screenPos * _ScreenParams.xy / 64 + _Time.y * 20).a) ;
-				float noiseSample = fmod(_Time.y, 1.0);
+
 				float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
+				int sample_count = lerp(MAX_SAMPLE_COUNT, MIN_SAMPLE_COUNT, viewDir.y);	//dir.y ==0 means horizontal, use maximum sample count
+
+				float2 screenPos = i.screenPos.xy / i.screenPos.w;
+				int2 texelID = int2(fmod((screenPos + _Time.x )/ _TexelSize , 3.0));
+				float bayerOffset = (bayerOffsets[texelID.x][texelID.y]) / 9.0f;
+				float offset = -fmod(_RaymarchOffset + bayerOffset, 1.0f)* 2.0f;
+
 				float intensity;
 				float depth;
-				int sample_count = lerp(MAX_SAMPLE_COUNT, MIN_SAMPLE_COUNT, viewDir.y);	//dir.y ==0 means horizontal, use maximum sample count
-				float density = GetDentisy(worldPos, viewDir, depthValue, sample_count, fmod(_RaymarchOffset, 1.0), intensity, depth);
+				float density = GetDentisy(worldPos, viewDir, depthValue, sample_count, offset, intensity, depth);
 
 				/*RGBA: direct intensity, depth(this is differenct from the slide), ambient, alpha*/
 				//return depth / 10000.0f;
@@ -130,6 +131,7 @@ Shader "Unlit/CloudShader"
 
 				sampler2D _MainTex;	//this is previous full-resolution tex.
 				sampler2D _LowresCloudTex;	//current low-resolution tex.
+				float4 _LowresCloudTex_TexelSize;
 				float4 _MainTex_TexelSize;
 				float2 _Jitter;		//jitter when rendering _LowresCloudTex in texel count.
 				float4x4 _PrevVP;	//View projection matrix of last frame.
@@ -139,6 +141,7 @@ Shader "Unlit/CloudShader"
 				float _AtmosphereColorSaturateDistance;
 				half3 _AmbientColor;
 				float _RaymarchOffset;
+				float2 _TexelSize;
 
 				float4 debug;
 
@@ -166,22 +169,13 @@ Shader "Unlit/CloudShader"
 					return o;
 				}
 
-
-				half4 SamplePrev(float3 vspos,out half outOfBound) {
-					float4 wspos = mul(unity_CameraToWorld,float4(vspos,1.0));
+				float2 PrevUV(float4 wspos, out half outOfBound) {
 					float4 prevUV = mul(_PrevVP, wspos);
 					prevUV.xy = 0.5 * (prevUV.xy / prevUV.w) + 0.5;
-					half oobmax = max(0.0 - prevUV.x,0.0 - prevUV.y);
+					half oobmax = max(0.0 - prevUV.x, 0.0 - prevUV.y);
 					half oobmin = max(prevUV.x - 1.0, prevUV.y - 1.0);
-					outOfBound = step(0,max(oobmin, oobmax));
-					half4 prevSample = tex2Dlod(_MainTex, float4(prevUV.xy, 0, 0));
-					return prevSample;
-				}
-
-				float4 SampleCurrent(float2 uv) {
-					uv = uv - (_Jitter - 1.5) * _MainTex_TexelSize.xy;
-					float4 currSample = tex2Dlod(_LowresCloudTex, float4(uv, 0, 0));
-					return currSample;
+					outOfBound = step(0, max(oobmin, oobmax));
+					return prevUV;
 				}
 
 				half CurrentCorrect(float2 uv,float2 jitter) {
@@ -191,35 +185,62 @@ Shader "Unlit/CloudShader"
 					return valid.x * valid.y;
 				}
 				
-				#define MIN_SAMPLE_COUNT 16
-				#define MAX_SAMPLE_COUNT 32
 				#define OOB_SAMPLE_COUNT 128
 				half4 frag(v2f i) : SV_Target
 				{
-					float depthValue = LinearEyeDepth(tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(i.screenPos)).r);
+					float sceneDepth = LinearEyeDepth(tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(i.screenPos)).r);
 					//return depthValue;
-					if (depthValue > _ProjectionParams.z - 1) {	//it's far plane.
-						depthValue += 100000;		//makes it work even with very low far plane value.
+					if (sceneDepth > _ProjectionParams.z - 1) {	//it's far plane.
+						sceneDepth += 100000;		//makes it work even with very low far plane value.
 					}
 
 					float3 vspos = float3(i.vsray, 1.0);
-
 					float4 worldPos = mul(unity_CameraToWorld, float4(vspos, 1.0));
 					worldPos /= worldPos.w;
-					float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
-					int sample_count = lerp(MAX_SAMPLE_COUNT, MIN_SAMPLE_COUNT, viewDir.y);	//dir.y ==0 means horizontal, use maximum sample count
-					float intensity, depth;
-					float density = GetDentisy(worldPos, viewDir, depthValue, sample_count, 2.0f * _RaymarchOffset, intensity, depth);
-					float4 raymarchResult = float4(intensity, depth, 1, density);
+					float4 raymarchResult = tex2D(_LowresCloudTex, i.uv);
+					float depth = raymarchResult.y;
+					float intensity = raymarchResult.x;
 
 					half outOfBound;
-					half4 prevSample = SamplePrev(vspos * depth, outOfBound);
-					if (outOfBound > 0.5f) {
-						float density = GetDentisy(worldPos, viewDir, depthValue, OOB_SAMPLE_COUNT, 0.0f, intensity, depth);
+					float2 prevUV = PrevUV(mul(unity_CameraToWorld, float4(vspos * depth, 1.0)), outOfBound);
+					
+					if (outOfBound > 0.5f) {	//Previous sample is out of bound ,do a high sample count to fix it.
+						float2 screenPos = i.screenPos.xy / i.screenPos.w;
+						int2 texelID = int2(fmod((screenPos + _Time.x) / _TexelSize, 3.0));
+						float bayerOffset = (bayerOffsets[texelID.x][texelID.y]) / 9.0f;
+						float offset = bayerOffset * 2.0f;
+
+						float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
+						float density = GetDentisy(worldPos, viewDir, sceneDepth, OOB_SAMPLE_COUNT, offset, intensity, depth);
 						raymarchResult = float4(intensity, depth, 1, density);
 					}
+					else {
+						half4 prevSample = tex2D(_MainTex, prevUV);
+						float2 xoffset = float2(_LowresCloudTex_TexelSize.x, 0.0f);
+						float2 yoffset = float2(0.0f, _LowresCloudTex_TexelSize.y);
+						half4 left = tex2Dlod(_LowresCloudTex, float4(i.uv - xoffset, 0.0, 0.0));
+						half4 right = tex2Dlod(_LowresCloudTex, float4(i.uv + xoffset, 0.0, 0.0));
+						half4 bot = tex2Dlod(_LowresCloudTex, float4(i.uv - yoffset, 0.0, 0.0));
+						half4 top = tex2Dlod(_LowresCloudTex, float4(i.uv + yoffset, 0.0, 0.0));
 
-					return lerp(prevSample, raymarchResult, max(0.05f, outOfBound));
+						half4 tl = tex2Dlod(_LowresCloudTex, float4(i.uv - xoffset - yoffset, 0.0, 0.0));
+						half4 tr = tex2Dlod(_LowresCloudTex, float4(i.uv - xoffset + yoffset, 0.0, 0.0));
+						half4 bl = tex2Dlod(_LowresCloudTex, float4(i.uv + xoffset - yoffset , 0.0, 0.0));
+						half4 br = tex2Dlod(_LowresCloudTex, float4(i.uv + xoffset + yoffset, 0.0, 0.0));
+
+						half4 mins = min(left, min(right, min(bot, top)));
+						half4 maxs = max(left, max(right, max(bot, top)));
+
+						half4 mins2 = min(tl, min(tr, min(bl, br)));
+						half4 maxs2 = max(tl, max(tr, max(bl, br)));
+						mins = min(mins, mins2);
+						maxs = max(maxs, maxs2);
+
+						prevSample = clamp(mins, maxs, prevSample);
+						raymarchResult = lerp(prevSample, raymarchResult, max(0.02f, outOfBound));
+					}
+
+					return 	raymarchResult;
 				}
 				ENDCG
 		}
