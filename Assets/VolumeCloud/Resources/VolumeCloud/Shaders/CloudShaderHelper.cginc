@@ -315,8 +315,8 @@ float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, int sample
 
 			intensity += intTransmittance * integScatt;
 			intTransmittance *= transmittance;
-			depth += (1.0f - transmittance) * length(rayPos - startPos);
-			depthweightsum += (1.0f - transmittance);
+			depth += intTransmittance * length(rayPos - startPos);
+			depthweightsum += intTransmittance;
 			raymarchDistance += sample_step;
 		}
 		else

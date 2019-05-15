@@ -103,7 +103,7 @@ Shader "Unlit/CloudShader"
 				int sample_count = lerp(MAX_SAMPLE_COUNT, MIN_SAMPLE_COUNT, viewDir.y);	//dir.y ==0 means horizontal, use maximum sample count
 
 				float2 screenPos = i.screenPos.xy / i.screenPos.w;
-				int2 texelID = int2(fmod((screenPos + _Time.x )/ _TexelSize , 3.0));
+				int2 texelID = int2(fmod((screenPos + _Time.y )/ _TexelSize , 3.0));
 				float bayerOffset = (bayerOffsets[texelID.x][texelID.y]) / 9.0f;
 				float offset = -fmod(_RaymarchOffset + bayerOffset, 1.0f)* 2.0f;
 
