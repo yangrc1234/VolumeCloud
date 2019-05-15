@@ -49,7 +49,6 @@ Shader "Unlit/CloudShader"
 			//Render to low-res buffer.
 			Pass
 			{
-
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
@@ -58,8 +57,13 @@ Shader "Unlit/CloudShader"
 			#include "./CloudShaderHelper.cginc"
 			#include "UnityCG.cginc"
 
-			#define MIN_SAMPLE_COUNT 16
+#ifdef HIGH_QUALITY
+			#define MIN_SAMPLE_COUNT 32
 			#define MAX_SAMPLE_COUNT 32
+#else
+			#define MIN_SAMPLE_COUNT 16
+			#define MAX_SAMPLE_COUNT 24
+#endif
 			sampler2D _CameraDepthTexture;
 			float _RaymarchOffset;
 			float4 _ProjectionExtents;
@@ -260,20 +264,20 @@ Shader "Unlit/CloudShader"
 								m2 += val * val;
 							}
 						}
-#if 1
+#if 0
 						//Ghosting effect is serious. But works perfectly well with static cloud.
 						prevSample = clamp(mins, maxs, prevSample);
 #else
 						//This is still in experiment. Code from https://zhuanlan.zhihu.com/p/64993622.
 						//The result contains lots of noise even when camera stops move, don't know why.
-						float4 gamma = (15.0f, 1.0f, 1.0f, 5.0f);
+						float4 gamma = (1.0f, 1.0f, 1.0f, 1.0f);
 						float4 mu = m1 / 9;
 						float4 sigma = sqrt(abs(m2 / 9 - mu * mu));
 						float4 minc = mu - gamma * sigma;
 						float4 maxc = mu + gamma * sigma;
 						prevSample = ClipAABB(minc, maxc, prevSample);	
 #endif	
-						raymarchResult = lerp(prevSample, raymarchResult, max(0.02f, outOfBound));
+						raymarchResult = lerp(prevSample, raymarchResult, max(0.05f, outOfBound));
 					}
 
 					return 	raymarchResult;
@@ -384,9 +388,9 @@ Shader "Unlit/CloudShader"
 
 					float originalDepthValue = LinearEyeDepth(tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(i.screenPos)).r);
 					//only if depthValue is nearly at the far clip plane, we use cloud.
-					if (originalDepthValue > _ProjectionParams.z - 100) {
+					//if (originalDepthValue > _ProjectionParams.z - 100) {
 						return half4(mcol.rgb * (1 - result.a) + result.rgb * result.a, 1);
-					}
+					//}
 					return mcol;
 				}
 					ENDCG
