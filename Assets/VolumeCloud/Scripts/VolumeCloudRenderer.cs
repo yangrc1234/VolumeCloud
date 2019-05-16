@@ -7,6 +7,10 @@ using UnityEngine.Rendering;
 
 namespace Yangrc.VolumeCloud {
 
+    /// <summary>
+    /// Generate halton sequence.
+    /// code from unity post-processing stack.
+    /// </summary>
     [System.Serializable]
     public class HaltonSequence {
         public int radix = 3;
@@ -25,16 +29,20 @@ namespace Yangrc.VolumeCloud {
             return result;
         }
     }
-
+    
+    /// <summary>
+    /// Cloud renderer post processing.
+    /// </summary>
     [ImageEffectAllowedInSceneView]
     [ExecuteInEditMode,RequireComponent(typeof(Camera))]
-        public class CloudVolumeRenderer : EffectBase {
+    [ImageEffectOpaque]
+        public class VolumeCloudRenderer : EffectBase {
         public VolumeCloudConfiguration configuration;
         private Material mat;
 
         private RenderTexture[] fullBuffer;
         private int fullBufferIndex;
-        private RenderTexture lowresBuffer;
+        private RenderTexture undersampleBuffer;
         private Matrix4x4 prevV;
         private Camera mcam;
         [SerializeField]
@@ -75,8 +83,6 @@ namespace Yangrc.VolumeCloud {
             mcam = GetComponent<Camera>();
             var width = mcam.pixelWidth >> downSample;
             var height = mcam.pixelHeight >> downSample;
-            width = width & (~3);   //make sure the width and height could be divided by 4, otherwise the low-res buffer can't be aligned with full-res buffer
-            height = height & (~3);
 
             this.EnsureMaterial();
             this.configuration.ApplyToMaterial(this.mat);
@@ -84,32 +90,27 @@ namespace Yangrc.VolumeCloud {
             EnsureArray(ref fullBuffer, 2);
             EnsureRenderTarget(ref fullBuffer[0], width, height, RenderTextureFormat.ARGBHalf, FilterMode.Bilinear);
             EnsureRenderTarget(ref fullBuffer[1], width, height, RenderTextureFormat.ARGBHalf, FilterMode.Bilinear);
-            EnsureRenderTarget(ref lowresBuffer, width , height, RenderTextureFormat.ARGBHalf, FilterMode.Bilinear);
+            EnsureRenderTarget(ref undersampleBuffer, width , height, RenderTextureFormat.ARGBHalf, FilterMode.Bilinear);
 
             frameIndex = (frameIndex + 1)% 16;
-            //if (frameIndex == 0) {
-            bayerOffsetIndex = (bayerOffsetIndex + 1.0f) % 3.0f;
-            //}
             fullBufferIndex = (fullBufferIndex + 1) % 2;
 
             /* Some code is from playdead TAA. */
 
-            //1. Render low-res buffer.
-            //GetProjectionExtents will offset the camera "window".
+            //1. Pass1, Render a undersampled buffer. The buffer is dithered using bayer matrix(every 3x3 pixel) and halton sequence.
             mat.SetVector("_ProjectionExtents", mcam.GetProjectionExtents());
             mat.SetFloat("_RaymarchOffset", sequence.Get());
-            mat.SetVector("_TexelSize", lowresBuffer.texelSize);
-            mat.SetFloat("_BayerMatrixOffset", bayerOffsetIndex);
+            mat.SetVector("_TexelSize", undersampleBuffer.texelSize);
 
-            Graphics.Blit(null, lowresBuffer, mat, 0);
-        
-            //2. Blit low-res buffer with previous image to make full-res result.
-            mat.SetTexture("_LowresCloudTex", lowresBuffer);
+            Graphics.Blit(null, undersampleBuffer, mat, 0);
+
+            //2. Pass 2, blend undersampled image with history buffer to new buffer.
+            mat.SetTexture("_UndersampleCloudTex", undersampleBuffer);
             mat.SetMatrix("_PrevVP", GL.GetGPUProjectionMatrix(mcam.projectionMatrix,false) * prevV);
             mat.SetVector("_ProjectionExtents", mcam.GetProjectionExtents()); 
             Graphics.Blit(fullBuffer[fullBufferIndex], fullBuffer[fullBufferIndex ^ 1], mat, 1);
 
-            //3. blit full-res result with final image.
+            //3. Pass3, Calculate lighting, blend final cloud image with final image.
             mat.SetTexture("_CloudTex", fullBuffer[fullBufferIndex ^ 1]);
             Graphics.Blit(source, destination, mat, 2);
 

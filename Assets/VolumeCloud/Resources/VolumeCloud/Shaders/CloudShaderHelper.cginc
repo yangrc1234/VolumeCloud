@@ -1,13 +1,10 @@
 #include "UnityCG.cginc"
-// Upgrade NOTE: excluded shader from DX11, OpenGL ES 2.0 because it uses unsized arrays
-#pragma exclude_renderers d3d11 gles
 
 #define THICKNESS 8000.0
 #define CENTER 5500.0
 
 #define EARTH_RADIUS 5000000.0
 #define EARTH_CENTER float3(0, -EARTH_RADIUS, 0)
-
 #define CLOUDS_START (CENTER - THICKNESS/2)
 #define CLOUDS_END (CENTER + THICKNESS/2)
 
@@ -37,7 +34,7 @@ float _CloudTopOffset;
 //Overall cloud size.
 float _CloudSize;
 //Overall Density
-float _CloudDensity;
+float _CloudOverallDensity;
 float _CloudCoverageModifier;
 float _CloudTypeModifier;
 
@@ -71,7 +68,7 @@ float HeightPercent(float3 worldPos) {
 	return saturate((worldPos.y + heightOffset - CENTER + THICKNESS / 2) / THICKNESS);
 }
 
-static float4 cloudGradients[] = {
+static float4 cloudGradients[3] = {
 	float4(0, 0.07, 0.08, 0.15),
 	float4(0, 0.2, 0.42, 0.6),
 	float4(0, 0.08, 0.75, 1)
@@ -120,7 +117,7 @@ float SampleDensity(float3 worldPos,int lod, bool cheap, out float wetness) {
 	weatherData *= float3(_CloudCoverageModifier, 1.0, _CloudTypeModifier);
 	float cloudCoverage = RemapClamped(weatherData.r, 0.0 ,1.0, 0.3, 1.0);
 	float cloudType = weatherData.b;
-	wetness = 1.0f;
+	wetness = weatherData.g;
 
 	//Calculate the normalized height between[0,1]
 	float heightPercent = HeightPercent(worldPos);
@@ -159,32 +156,23 @@ float SampleDensity(float3 worldPos,int lod, bool cheap, out float wetness) {
 	}
 
 	//sampleResult = pow(sampleResult, 1.2);
-	return max(0, sampleResult) * _CloudDensity;
-}
-
-half rand(half3 co)
-{
-	return frac(sin(dot(co.xyz, half3(12.9898, 78.233, 45.5432))) * 43758.5453) - 0.5f;
+	return max(0, sampleResult) * _CloudOverallDensity;
 }
 
 float _MultiScatteringA;
 float _MultiScatteringB;
 float _MultiScatteringC;
 
-float fastAcos(float x) {
-	return (-0.69813170079773212f * x * x - 0.87266462599716477f) * x + 1.5707963267948966f;
-}
-
 //We raymarch to sun using length of pattern 1,2,4,8, corresponding to step value.
 //First sample(length 1) should sample at length 0.5, meaning an average inside length 1.
 //Second sample should sample at 1.5, meaning an average inside [1, 2],
 //Third should sample at 3.0, which is [2, 4]
 //Forth at 6.0, meaning [4, 8]
-static const float shadowSampleDistance[] = {
+static const float shadowSampleDistance[5] = {
 	0.5, 1.5, 3.0, 6.0, 12.0
 };
 
-static const float shadowSampleContribution[] = {
+static const float shadowSampleContribution[5] = {
 	1.0f, 1.0f, 2.0f, 4.0f, 8.0f
 };
 
@@ -207,7 +195,7 @@ float SampleEnergy(float3 worldPos, float3 viewDir) {
 	float opticsDistance = SampleOpticsDistanceToSun(worldPos);
 	float result = 0.0f;
 	[unroll]
-	for (int octaveIndex = 0; octaveIndex < 2; octaveIndex++) {
+	for (int octaveIndex = 0; octaveIndex < 2; octaveIndex++) {	//Multi scattering approximation from Frostbite.
 		float transmittance = exp(-_ExtinctionCoefficient * pow(_MultiScatteringB, octaveIndex) * opticsDistance);
 		float cosTheta = dot(viewDir, _WorldSpaceLightPos0);
 		float ecMult = pow(_MultiScatteringC, octaveIndex);
@@ -267,7 +255,7 @@ bool resolve_ray_start_end(float3 ws_origin, float3 ws_ray, out float3 start, ou
 	return true;
 }
  
-float GetDentisy(float3 startPos, float3 dir,float maxSampleDistance, int sample_count, float raymarchOffset, out float intensity,out float depth) {
+float GetDensity(float3 startPos, float3 dir,float maxSampleDistance, int sample_count, float raymarchOffset, out float intensity,out float depth) {
 	float3 sampleStart, sampleEnd;
 
 	if (!resolve_ray_start_end(startPos, dir, sampleStart, sampleEnd)) {

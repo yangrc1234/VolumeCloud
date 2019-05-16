@@ -16,12 +16,14 @@ Shader "Unlit/CloudShader"
 		_CurlTile("CurlTile", float) = .2
 		_CurlStrength("CurlStrength", float) = 1
 		_CloudTopOffset("TopOffset",float) = 100
-		_CloudDensity("CloudDensity",float) = .1
 		_CloudSize("CloudSize", float) = 50000
+
+		_CloudOverallDensity("CloudOverallDensity",float) = .1
 		_CloudCoverageModifier("CloudCoverageModifier", float) = 1.0
 		_CloudTypeModifier("CloudTypeModifier", float) = 1.0
+
 		_WeatherTex("WeatherTex", 2D) = "white" {}
-		_WeatherTexSize("WeatherTexSize", float) = 25000
+		_WeatherTexSize("WeatherTexSize", float) = 50000
 		_WindDirection("WindDirection",Vector) = (1,1,0,0)
 		_SilverIntensity("SilverIntensity",float) = .8
 		_ScatteringCoefficient("ScatteringCoefficient",float) = .04
@@ -30,34 +32,28 @@ Shader "Unlit/CloudShader"
 		_MultiScatteringB("MultiScatteringB",float) = 0.5
 		_MultiScatteringC("MultiScatteringC",float) = 0.5
 		_SilverSpread("SilverSpread",float) = .75
-		_BlueNoise("BlueNoise",2D) = "gray" {}
 		_RaymarchOffset("RaymarchOffset", float) = 0.0
 		_AmbientColor("AmbientColor", Color) = (1,1,1,1)
 		_AtmosphereColor("AtmosphereColor" , Color) = (1,1,1,1)
 		_AtmosphereColorSaturateDistance("AtmosphereColorSaturateDistance", float) = 80000
+		
 	}
 		SubShader
 		{
 			Cull Off ZWrite Off ZTest Always
-			Tags {
-				"RenderType" = "Transparent"
-				"Queue" = "Transparent"
-				"LightMode" = "ForwardBase"
-			}
-			Lighting On
-			LOD 100
-			//Render to low-res buffer.
+			//Pass1, Render a undersampled buffer. The buffer is dithered using bayer matrix(every 3x3 pixel) and halton sequence.
+			//Why does it need a bayer matrix as offset? See technical overview on github page.
 			Pass
 			{
 			CGPROGRAM
+			
+			#pragma multi_compile _ FIRST_FRAME	//due to some glitch caused by ClipAABB in Temporal reprojection(see pass 2), when rendering the very first initial frame, we need a higher sample count.
 			#pragma vertex vert
 			#pragma fragment frag
-			// make fog work
-			#pragma multi_compile_fog
 			#include "./CloudShaderHelper.cginc"
 			#include "UnityCG.cginc"
 
-#ifdef HIGH_QUALITY
+#ifdef FIRST_FRAME
 			#define MIN_SAMPLE_COUNT 32
 			#define MAX_SAMPLE_COUNT 32
 #else
@@ -65,9 +61,10 @@ Shader "Unlit/CloudShader"
 			#define MAX_SAMPLE_COUNT 24
 #endif
 			sampler2D _CameraDepthTexture;
-			float _RaymarchOffset;
+			float _RaymarchOffset;	//raymarch offset by halton sequence, [0,1]
 			float4 _ProjectionExtents;
-			float2 _TexelSize;
+			float2 _TexelSize;	//Texelsize used to decide offset by bayer matrix.
+
 			struct appdata
 			{
 				float4 vertex : POSITION;
@@ -76,8 +73,7 @@ Shader "Unlit/CloudShader"
 
 			struct Interpolator {
 				float4 vertex : SV_POSITION;
-				float3 localPos : TEXCOORD0;
-				float4 screenPos : TEXCOORD2;
+				float4 screenPos : TEXCOORD0;
 				float2 vsray : TEXCOORD1;
 			};
 
@@ -85,7 +81,6 @@ Shader "Unlit/CloudShader"
 			{
 				Interpolator o;
 				o.vertex = UnityObjectToClipPos(v.vertex);
-				o.localPos = v.vertex;
 				v.vertex.z = 0.5;
 				o.screenPos = ComputeScreenPos(o.vertex);
 				o.vsray = (2.0 * v.uv - 1.0) * _ProjectionExtents.xy + _ProjectionExtents.zw;
@@ -99,30 +94,31 @@ Shader "Unlit/CloudShader"
 				worldPos /= worldPos.w;
 				float sceneDepth = LinearEyeDepth(tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(i.screenPos)).r); 
 				if (sceneDepth > _ProjectionParams.z - 1) {	//it's far plane.
-					sceneDepth += 100000;		//makes it work even with very low far plane value.
+					sceneDepth += 100000;		//extend it, so that in raymarch later we could raymarch beyond far plane.
 				}
 				float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
 				int sample_count = lerp(MAX_SAMPLE_COUNT, MIN_SAMPLE_COUNT, abs(viewDir.y));	//dir.y ==0 means horizontal, use maximum sample count
 
 				float2 screenPos = i.screenPos.xy / i.screenPos.w;
-				int2 texelID = int2(fmod((screenPos + _Time.y)/ _TexelSize , 3.0));
-				float bayerOffset = (bayerOffsets[texelID.x][texelID.y]) / 9.0f;
-				float offset = -fmod(_RaymarchOffset + bayerOffset, 1.0f);
+				int2 texelID = int2(fmod((screenPos + _Time.y)/ _TexelSize , 3.0));	//Calculate a texel id to index bayer matrix. Add time value to offset the bayer matrix every frame to avoid patterning.
+																					//TODO: There should be a better idea than directly offset it with Time.
 
-				float intensity;
-				float distance;
-				//TODO: sceneDepth here is distance in camera z-axis, but the parameter should be real distance, fix it.
-				float density = GetDentisy(worldPos, viewDir, sceneDepth, sample_count, offset, intensity, distance);
+				float bayerOffset = (bayerOffsets[texelID.x][texelID.y]) / 9.0f;	//bayeroffset between[0,1)
+				float offset = -fmod(_RaymarchOffset + bayerOffset, 1.0f);			//final offset combined. The value will be multiplied by sample step in GetDensity.
+
+
+				float intensity, distance;
+				//TODO: sceneDepth here is distance in camera z-axis, but the parameter should be radial distance.
+				float density = GetDensity(worldPos, viewDir, sceneDepth, sample_count, offset, /*out*/intensity, /*out*/distance);
 
 				/*RGBA: direct intensity, depth(this is differenct from the slide), ambient, alpha*/
-				//return depth / 10000.0f;
 				return float4(intensity, distance, /*ambient haven't implemented yet */1, density);
 			}
 
 			ENDCG
 		}
 
-			//Blend low-res buffer with previmage to make final cloud image.
+			//Pass 2, blend undersampled image with history buffer to new buffer.
 			Pass{
 				CGPROGRAM
 				#pragma vertex vert
@@ -130,23 +126,18 @@ Shader "Unlit/CloudShader"
 
 				#include "./CloudShaderHelper.cginc"
 				#include "UnityCG.cginc"
-				#include "Lighting.cginc"
-
-				sampler2D _MainTex;	//this is previous full-resolution tex.
-				sampler2D _LowresCloudTex;	//current low-resolution tex.
-				float4 _LowresCloudTex_TexelSize;
+				
+				sampler2D _MainTex;						//history buffer.
 				float4 _MainTex_TexelSize;
-				float2 _Jitter;		//jitter when rendering _LowresCloudTex in texel count.
-				float4x4 _PrevVP;	//View projection matrix of last frame.
+				sampler2D _UndersampleCloudTex;			//current undersampled tex.
+				float4 _UndersampleCloudTex_TexelSize;
+
+				float4x4 _PrevVP;	//View projection matrix of last frame. Used to temporal reprojection.
+
+				//These values are needed for doing extra raymarch when out of bound.
 				sampler2D _CameraDepthTexture;
 				float4 _ProjectionExtents;
-				half3 _AtmosphereColor;
-				float _AtmosphereColorSaturateDistance;
-				half3 _AmbientColor;
-				float _RaymarchOffset;
 				float2 _TexelSize;
-
-				float4 debug;
 
 				struct appdata
 				{
@@ -172,6 +163,7 @@ Shader "Unlit/CloudShader"
 					return o;
 				}
 
+				//Get uv of wspos in history buffer.
 				float2 PrevUV(float4 wspos, out half outOfBound) {
 					float4 prevUV = mul(_PrevVP, wspos);
 					prevUV.xy = 0.5 * (prevUV.xy / prevUV.w) + 0.5;
@@ -181,13 +173,7 @@ Shader "Unlit/CloudShader"
 					return prevUV;
 				}
 
-				half CurrentCorrect(float2 uv,float2 jitter) {
-					float2 texelRelativePos = fmod(uv * _MainTex_TexelSize.zw, 4);//between (0, 4.0)
-					texelRelativePos -= jitter;
-					float2 valid = saturate(2 * (0.5 - abs(texelRelativePos - 0.5)));
-					return valid.x * valid.y;
-				}
-
+				//Code from https://zhuanlan.zhihu.com/p/64993622. Do AABB clip in TAA(clip to center).
 				half4 ClipAABB(half4 aabbMin, half4 aabbMax, half4 prevSample)
 				{
 					// note: only clips towards aabb center (but fast!)
@@ -205,45 +191,44 @@ Shader "Unlit/CloudShader"
 						return prevSample;// point inside aabb
 				}
 				
-				#define OOB_SAMPLE_COUNT 128
+				//Sample count used when out of screen bound.
+				#define OOB_SAMPLE_COUNT 32
 				half4 frag(v2f i) : SV_Target
 				{
-					float sceneDepth = LinearEyeDepth(tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(i.screenPos)).r);
-					//return depthValue;
-					if (sceneDepth > _ProjectionParams.z - 1) {	//it's far plane.
-						sceneDepth += 100000;		//makes it work even with very low far plane value.
-					}
-
 					float3 vspos = float3(i.vsray, 1.0);
 					float4 worldPos = mul(unity_CameraToWorld, float4(vspos, 1.0f));
 					worldPos /= worldPos.w;
-					float4 raymarchResult = tex2D(_LowresCloudTex, i.uv);
-					float depth = raymarchResult.y;	//The depth here is actually radial distance.
+					float4 raymarchResult = tex2D(_UndersampleCloudTex, i.uv);
+					float distance = raymarchResult.y;		
 					float intensity = raymarchResult.x;
 
 					half outOfBound;
-					float2 prevUV = PrevUV(mul(unity_CameraToWorld, float4(normalize(vspos) * depth, 1.0)), outOfBound);
+					float2 prevUV = PrevUV(mul(unity_CameraToWorld, float4(normalize(vspos) * distance, 1.0)), outOfBound);	//find uv in history buffer.
 					
-					if (outOfBound > 0.5f) {	//Previous sample is out of bound ,do a high sample count to fix it.
+					if (outOfBound > 0.5f) {	//Can't find history info, do an extra raymarch to fix it.
+						float sceneDepth = LinearEyeDepth(tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(i.screenPos)).r);
+						//return depthValue;
+						if (sceneDepth > _ProjectionParams.z - 1) {	//it's far plane.
+							sceneDepth += 100000;		//makes it work even with very low far plane value.
+						}
+
 						float2 screenPos = i.screenPos.xy / i.screenPos.w;
 						int2 texelID = int2(fmod((screenPos + _Time.x) / _TexelSize, 3.0));
 						float bayerOffset = (bayerOffsets[texelID.x][texelID.y]) / 9.0f;
-						float offset = bayerOffset * 2.0f;
+						float offset = bayerOffset;
 
 						float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
 						//TODO: sceneDepth here is distance in camera z-axis, but the parameter should be real distance, fix it.
-						float density = GetDentisy(worldPos, viewDir, sceneDepth, OOB_SAMPLE_COUNT, offset, intensity, depth);
-						raymarchResult = float4(intensity, depth, 1, density);
+						float density = GetDensity(worldPos, viewDir, sceneDepth, OOB_SAMPLE_COUNT, offset, intensity, distance);
+						raymarchResult = float4(intensity, distance, 1, density);
 					}
 					else {	//Do temporal reprojection and clip things.
 						half4 prevSample = tex2D(_MainTex, prevUV);
-						float2 xoffset = float2(_LowresCloudTex_TexelSize.x, 0.0f);
-						float2 yoffset = float2(0.0f, _LowresCloudTex_TexelSize.y);
-
-						half4 mins = raymarchResult;
-						half4 maxs = raymarchResult;
+						float2 xoffset = float2(_UndersampleCloudTex_TexelSize.x, 0.0f);
+						float2 yoffset = float2(0.0f, _UndersampleCloudTex_TexelSize.y);
 
 						float4 m1 = 0.0f, m2 = 0.0f;
+						//The loop below calculates mean and variance used to calculate AABB.
 						[unroll]
 						for (int x = -1; x <= 1; x ++) {
 							[unroll]
@@ -253,49 +238,39 @@ Shader "Unlit/CloudShader"
 									val = raymarchResult;
 								}
 								else {
-									val = tex2Dlod(_LowresCloudTex, float4(i.uv + xoffset * x + yoffset * y, 0.0, 0.0));
+									val = tex2Dlod(_UndersampleCloudTex, float4(i.uv + xoffset * x + yoffset * y, 0.0, 0.0));
 								}
-								if (val.w == 0.0f) {
-									val = raymarchResult;
-								}
-								mins = min(val, mins);
-								maxs = max(val, maxs);
 								m1 += val;
 								m2 += val * val;
 							}
 						}
-#if 0
-						//Ghosting effect is serious. But works perfectly well with static cloud.
-						prevSample = clamp(mins, maxs, prevSample);
-#else
-						//This is still in experiment. Code from https://zhuanlan.zhihu.com/p/64993622.
-						//The result contains lots of noise even when camera stops move, don't know why.
-						float4 gamma = (1.0f, 1.0f, 1.0f, 1.0f);
+						//Code from https://zhuanlan.zhihu.com/p/64993622.
+						float gamma = 1.0f;
 						float4 mu = m1 / 9;
 						float4 sigma = sqrt(abs(m2 / 9 - mu * mu));
 						float4 minc = mu - gamma * sigma;
 						float4 maxc = mu + gamma * sigma;
 						prevSample = ClipAABB(minc, maxc, prevSample);	
-#endif	
+
+						//Blend.
 						raymarchResult = lerp(prevSample, raymarchResult, max(0.05f, outOfBound));
 					}
-
 					return 	raymarchResult;
 				}
 				ENDCG
-		}
+			}
 
-			//Blend final cloud image with final image.
+			//Pass3, Calculate lighting, blend final cloud image with final image.
 			Pass{
-					Cull Off ZWrite Off ZTest Always
-					CGPROGRAM
-#pragma vertex vert
-#pragma fragment frag
+				Cull Off ZWrite Off ZTest Always
+				CGPROGRAM
+				#pragma vertex vert
+				#pragma fragment frag
 
-#include "UnityCG.cginc"
-#include "Lighting.cginc"
+				#include "UnityCG.cginc"
+				#include "Lighting.cginc"
 
-#define USE_YANGRC_AP	//Do we use atmosphere perspective? turn off this if ap is not needed.
+				//#define USE_YANGRC_AP	//Do we use atmosphere perspective? turn off this if ap is not needed.
 
 				sampler2D _MainTex;	//Final image without cloud.
 				sampler2D _CloudTex;	//The full resolution cloud tex we generated.
@@ -326,11 +301,13 @@ Shader "Unlit/CloudShader"
 					return o;
 				}
 				half3 _AmbientColor;
+#ifdef USE_YANGRC_AP	//Use value from AP system.
+				#include "Assets/AtmosphereScattering/Shaders/AerialPerspectiveHelper.cginc"
+#else
 				half3 _AtmosphereColor;
 				float _AtmosphereColorSaturateDistance;
-#ifdef USE_YANGRC_AP
-#include "Assets/AtmosphereScattering/Shaders/AerialPerspectiveHelper.cginc"
 #endif	
+
 				half4 frag(v2f i) : SV_Target
 				{
 					float3 vspos = float3(i.vsray, 1.0);
@@ -354,12 +331,11 @@ Shader "Unlit/CloudShader"
 						sunColor = transmittance * _SunRadianceOnAtm;
 					}
 #else
-					sunColor = _LightColor0.rgb;
+					sunColor = _LightColor0.rgb * 3.1415926;
 #endif
 					half4 result;
 					result.rgb = currSample.r * sunColor + currSample.b *_AmbientColor * currSample.a;
 					result.a = currSample.a;
-
 #ifdef USE_YANGRC_AP
 					///* Calculate ap */
 					float r, mu, mu_s, nu;

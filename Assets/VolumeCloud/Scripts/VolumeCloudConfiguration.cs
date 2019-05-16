@@ -71,7 +71,6 @@ namespace Yangrc.VolumeCloud {
             public static int heightDensity = Shader.PropertyToID("_HeightDensity");
             public static int detailTex = Shader.PropertyToID("_DetailTex");
             public static int curlNoise = Shader.PropertyToID("_CurlNoise");
-            public static int blueNoise = Shader.PropertyToID("_BlueNoise");        //These are set in different scripts.
 
             public static int baseTile = Shader.PropertyToID("_BaseTile");
             public static int detailTile = Shader.PropertyToID("_DetailTile");
@@ -80,7 +79,7 @@ namespace Yangrc.VolumeCloud {
             public static int curlStrength = Shader.PropertyToID("_CurlStrength");
             public static int topOffset = Shader.PropertyToID("_CloudTopOffset");
             public static int cloudSize = Shader.PropertyToID("_CloudSize");
-            public static int cloudDensity = Shader.PropertyToID("_CloudDensity");
+            public static int cloudOverallDensity = Shader.PropertyToID("_CloudOverallDensity");
             public static int cloudTypeModifier = Shader.PropertyToID("_CloudTypeModifier");
             public static int cloudCoverageModifier = Shader.PropertyToID("_CloudCoverageModifier");
             public static int windDirection = Shader.PropertyToID("_WindDirection");
@@ -107,7 +106,7 @@ namespace Yangrc.VolumeCloud {
             mat.SetFloat(PropertyHash.curlStrength, curlStrength);
             mat.SetFloat(PropertyHash.topOffset, topOffset);
             mat.SetFloat(PropertyHash.cloudSize, overallSize);
-            mat.SetFloat(PropertyHash.cloudDensity, overallDensity);
+            mat.SetFloat(PropertyHash.cloudOverallDensity, overallDensity);
             mat.SetFloat(PropertyHash.cloudTypeModifier, cloudTypeModifier);
             mat.SetFloat(PropertyHash.cloudCoverageModifier, cloudCoverageModifier);
 
