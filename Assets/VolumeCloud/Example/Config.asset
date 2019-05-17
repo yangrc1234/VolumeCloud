@@ -17,8 +17,8 @@ MonoBehaviour:
   topOffset: 0
   detailTile: 36
   detailStrength: 0.2
-  curlTile: 0.1
-  curlStrength: 2
+  curlTile: 0.01
+  curlStrength: 5
   overallDensity: 1
   cloudTypeModifier: 1
   cloudCoverageModifier: 1
@@ -31,7 +31,6 @@ MonoBehaviour:
   multiScatteringExtinction: 0.5
   multiScatteringEC: 0.5
   silverSpread: 0.1
-  atmosphereColor: {r: 0.14597753, g: 0.14602973, b: 0.14705884, a: 0}
-  atmosphereSaturateDistance: 100000
+  atmosphereSaturateDistance: 60000
   weatherTex: {fileID: 2800000, guid: c73be893af46a1e4db152d42aacae768, type: 3}
   weatherTexSize: 50000

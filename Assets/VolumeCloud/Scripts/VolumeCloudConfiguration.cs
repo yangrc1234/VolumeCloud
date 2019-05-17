@@ -15,17 +15,17 @@ namespace Yangrc.VolumeCloud {
         [Header("Shape - Detail")]
         [Range(0, 80)]
         public float detailTile = 36.0f;
-        [Range(.01f, .8f)]
-        public float detailStrength = 1.0f;
+        [Range(.01f, .5f)]
+        public float detailStrength = 0.2f;
 
         [Header("Shape - Curl")]
-        [Range(0, 5)]
-        public float curlTile = 0.2f;
-        public float curlStrength = 1.0f;
+        [Range(0.001f, 1.0f)]
+        public float curlTile = 0.01f;
+        public float curlStrength = 5.0f;
 
         [Header("Shape - Modifiers")]
         [Range(0, 1)]
-        public float overallDensity = 0.05f;
+        public float overallDensity = 1.0f;
         [Range(0, 1)]
         public float cloudTypeModifier = 1.0f;
         [Range(0, 1)]
@@ -39,9 +39,9 @@ namespace Yangrc.VolumeCloud {
         public Color ambientColor = new Color(214, 37, 154);
         public const float COEFFICIENT_SCALE = 1e-2f;
         [Range(0.1f, 2.0f)]
-        public float scatteringCoefficient = 4f;
+        public float scatteringCoefficient = .5f;
         [Range(0.1f, 2.0f)]
-        public float extinctionCoefficient = 4f;
+        public float extinctionCoefficient = .52f;  
 
         [Header("Lighting - Multi Scattering Approximation")]
         [Range(0.01f, 1)]
@@ -55,10 +55,9 @@ namespace Yangrc.VolumeCloud {
         public float multiScatteringEC = .5f;
 
         [Header("Lighting - Silver")]
-        public float silverSpread = 0.7f;
+        public float silverSpread = 0.1f;
 
         [Header("Lighting - Atmosphere")]
-        public Color atmosphereColor = new Color(236, 38, 143);
         public float atmosphereSaturateDistance = 100000.0f;
 
         [Header("Weather map")]
@@ -92,7 +91,6 @@ namespace Yangrc.VolumeCloud {
             public static int multiScatteringC = Shader.PropertyToID("_MultiScatteringC");
             public static int silverSpread = Shader.PropertyToID("_SilverSpread");
 
-            public static int atmosphereColor = Shader.PropertyToID("_AtmosphereColor");
             public static int atmosphereColorSaturateDistance = Shader.PropertyToID("_AtmosphereColorSaturateDistance");
             public static int ambientColor = Shader.PropertyToID("_AmbientColor");
         }
@@ -120,7 +118,6 @@ namespace Yangrc.VolumeCloud {
             mat.SetFloat(PropertyHash.multiScatteringC, multiScatteringEC );
             mat.SetFloat(PropertyHash.silverSpread, silverSpread);
 
-            mat.SetColor(PropertyHash.atmosphereColor, atmosphereColor);
             mat.SetFloat(PropertyHash.atmosphereColorSaturateDistance, atmosphereSaturateDistance);
             mat.SetColor(PropertyHash.ambientColor, ambientColor);
         }

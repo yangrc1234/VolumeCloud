@@ -11,7 +11,6 @@ namespace Yangrc.VolumeCloud {
     /// Generate halton sequence.
     /// code from unity post-processing stack.
     /// </summary>
-    [System.Serializable]
     public class HaltonSequence {
         public int radix = 3;
         private int storedIndex = 0;
@@ -29,6 +28,12 @@ namespace Yangrc.VolumeCloud {
             return result;
         }
     }
+
+    public enum Quality {
+        Low,
+        Normal,    //Low sample count
+        High,       //High sample count and high shadow sample count.
+    }
     
     /// <summary>
     /// Cloud renderer post processing.
@@ -38,20 +43,21 @@ namespace Yangrc.VolumeCloud {
     [ImageEffectOpaque]
         public class VolumeCloudRenderer : EffectBase {
         public VolumeCloudConfiguration configuration;
-        private Material mat;
+        [Range(0, 2)]
+        public int downSample = 1;
+        public Quality quality;
 
+        private Material mat;
         private RenderTexture[] fullBuffer;
         private int fullBufferIndex;
         private RenderTexture undersampleBuffer;
         private Matrix4x4 prevV;
         private Camera mcam;
-        [SerializeField]
-        private HaltonSequence sequence;
-
+        private HaltonSequence sequence = new HaltonSequence() { radix = 3 };
         // The index of 4x4 pixels.
         private int frameIndex = 0;
         private float bayerOffsetIndex = 0;
-
+        private bool firstFrame = true;
 
         void EnsureMaterial(bool force = false) {
             if (mat == null || force) {
@@ -59,16 +65,25 @@ namespace Yangrc.VolumeCloud {
                 var baseTex = Resources.Load<Texture3D>("VolumeCloud/Textures/BaseNoise");
                 var detailTex = Resources.Load<Texture3D>("VolumeCloud/Textures/DetailNoise");
                 var curlTex = Resources.Load<Texture2D>("VolumeCloud/Textures/CurlNoise");
-                var blurTex = Resources.Load<Texture2D>("VolumeCloud/Textures/BlueNoise");
                 mat = new Material(shader);
                 mat.SetTexture("_BaseTex", baseTex);
                 mat.SetTexture("_DetailTex", detailTex);
                 mat.SetTexture("_CurlNoise", curlTex);
-                mat.SetTexture("_BlueNoise", blurTex);
             }
         }
-        [Range(0,2)]
-        public int downSample = 1;
+
+        private void OnDestroy() {
+            if (this.fullBuffer != null) {
+                for (int i = 0; i < fullBuffer.Length; i++) {
+                    fullBuffer[i].Release();
+                    fullBuffer[i] = null;
+                }
+            }
+            if (this.undersampleBuffer != null) {
+                this.undersampleBuffer.Release();
+                this.undersampleBuffer = null;
+            }
+        }
 
         private void Start() {
             this.EnsureMaterial(true);
@@ -88,9 +103,9 @@ namespace Yangrc.VolumeCloud {
             this.configuration.ApplyToMaterial(this.mat);
 
             EnsureArray(ref fullBuffer, 2);
-            EnsureRenderTarget(ref fullBuffer[0], width, height, RenderTextureFormat.ARGBHalf, FilterMode.Bilinear);
-            EnsureRenderTarget(ref fullBuffer[1], width, height, RenderTextureFormat.ARGBHalf, FilterMode.Bilinear);
-            EnsureRenderTarget(ref undersampleBuffer, width , height, RenderTextureFormat.ARGBHalf, FilterMode.Bilinear);
+            firstFrame |= EnsureRenderTarget(ref fullBuffer[0], width, height, RenderTextureFormat.ARGBHalf, FilterMode.Bilinear);
+            firstFrame |= EnsureRenderTarget(ref fullBuffer[1], width, height, RenderTextureFormat.ARGBHalf, FilterMode.Bilinear);
+            firstFrame |= EnsureRenderTarget(ref undersampleBuffer, width , height, RenderTextureFormat.ARGBHalf, FilterMode.Bilinear);
 
             frameIndex = (frameIndex + 1)% 16;
             fullBufferIndex = (fullBufferIndex + 1) % 2;
@@ -98,6 +113,15 @@ namespace Yangrc.VolumeCloud {
             /* Some code is from playdead TAA. */
 
             //1. Pass1, Render a undersampled buffer. The buffer is dithered using bayer matrix(every 3x3 pixel) and halton sequence.
+            //If it's first frame, force a high quality sample to make the initial history buffer good enough.
+            if (firstFrame || quality == Quality.High) {
+                mat.EnableKeyword("HIGH_QUALITY");
+            } else if (quality == Quality.Normal) {
+                mat.EnableKeyword("MEDIUM_QUALITY");
+            }else if (quality == Quality.Low) {
+                mat.EnableKeyword("LOW_QUALITY");
+            }
+
             mat.SetVector("_ProjectionExtents", mcam.GetProjectionExtents());
             mat.SetFloat("_RaymarchOffset", sequence.Get());
             mat.SetVector("_TexelSize", undersampleBuffer.texelSize);
@@ -107,7 +131,11 @@ namespace Yangrc.VolumeCloud {
             //2. Pass 2, blend undersampled image with history buffer to new buffer.
             mat.SetTexture("_UndersampleCloudTex", undersampleBuffer);
             mat.SetMatrix("_PrevVP", GL.GetGPUProjectionMatrix(mcam.projectionMatrix,false) * prevV);
-            mat.SetVector("_ProjectionExtents", mcam.GetProjectionExtents()); 
+            mat.SetVector("_ProjectionExtents", mcam.GetProjectionExtents());
+
+            if (firstFrame) {   //Wait, is this the first frame? If it is, the history buffer is empty yet. It will cause glitch if we use it directly. Fill it using the undersample buffer.
+                Graphics.Blit(undersampleBuffer, fullBuffer[fullBufferIndex]);
+            }
             Graphics.Blit(fullBuffer[fullBufferIndex], fullBuffer[fullBufferIndex ^ 1], mat, 1);
 
             //3. Pass3, Calculate lighting, blend final cloud image with final image.
@@ -116,6 +144,7 @@ namespace Yangrc.VolumeCloud {
 
             //4. Cleanup
             prevV = mcam.worldToCameraMatrix;
+            firstFrame = false;
         }
     }
 }

@@ -46,19 +46,23 @@ Shader "Unlit/CloudShader"
 			Pass
 			{
 			CGPROGRAM
-			
-			#pragma multi_compile _ FIRST_FRAME	//due to some glitch caused by ClipAABB in Temporal reprojection(see pass 2), when rendering the very first initial frame, we need a higher sample count.
+			#pragma multi_compile LOW_QUALITY MEDIUM_QUALITY HIGH_QUALITY	//High quality uses more samples.
 			#pragma vertex vert
 			#pragma fragment frag
 			#include "./CloudShaderHelper.cginc"
 			#include "UnityCG.cginc"
 
-#ifdef FIRST_FRAME
+#if defined(HIGH_QUALITY)
 			#define MIN_SAMPLE_COUNT 32
 			#define MAX_SAMPLE_COUNT 32
-#else
-			#define MIN_SAMPLE_COUNT 16
+#endif	
+#if defined(MEDIUM_QUALITY)
+			#define MIN_SAMPLE_COUNT 24
 			#define MAX_SAMPLE_COUNT 24
+#endif	
+#if defined(LOW_QUALITY)
+			#define MIN_SAMPLE_COUNT 16
+			#define MAX_SAMPLE_COUNT 16
 #endif
 			sampler2D _CameraDepthTexture;
 			float _RaymarchOffset;	//raymarch offset by halton sequence, [0,1]
@@ -100,7 +104,7 @@ Shader "Unlit/CloudShader"
 				int sample_count = lerp(MAX_SAMPLE_COUNT, MIN_SAMPLE_COUNT, abs(viewDir.y));	//dir.y ==0 means horizontal, use maximum sample count
 
 				float2 screenPos = i.screenPos.xy / i.screenPos.w;
-				int2 texelID = int2(fmod((screenPos + _Time.y)/ _TexelSize , 3.0));	//Calculate a texel id to index bayer matrix. Add time value to offset the bayer matrix every frame to avoid patterning.
+				int2 texelID = int2(fmod(screenPos/ _TexelSize , 3.0));	//Calculate a texel id to index bayer matrix.
 																					//TODO: There should be a better idea than directly offset it with Time.
 
 				float bayerOffset = (bayerOffsets[texelID.x][texelID.y]) / 9.0f;	//bayeroffset between[0,1)
@@ -123,6 +127,7 @@ Shader "Unlit/CloudShader"
 				CGPROGRAM
 				#pragma vertex vert
 				#pragma fragment frag
+				#pragma multi_compile LOW_QUALITY MEDIUM_QUALITY HIGH_QUALITY	
 
 				#include "./CloudShaderHelper.cginc"
 				#include "UnityCG.cginc"
@@ -304,7 +309,6 @@ Shader "Unlit/CloudShader"
 #ifdef USE_YANGRC_AP	//Use value from AP system.
 				#include "Assets/AtmosphereScattering/Shaders/AerialPerspectiveHelper.cginc"
 #else
-				half3 _AtmosphereColor;
 				float _AtmosphereColorSaturateDistance;
 #endif	
 
@@ -359,7 +363,7 @@ Shader "Unlit/CloudShader"
 					result.rgb = result.rgb * transmittanceToTarget + scatteringBetween;
 #else
 					float atmosphericBlendFactor = saturate(pow(depth / _AtmosphereColorSaturateDistance, 0.6));
-					result.rgb = lerp(result.rgb, _AtmosphereColor * currSample.a, saturate(atmosphericBlendFactor));
+					result.a *= 1.0f - atmosphericBlendFactor;
 #endif
 
 					float originalDepthValue = LinearEyeDepth(tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(i.screenPos)).r);
