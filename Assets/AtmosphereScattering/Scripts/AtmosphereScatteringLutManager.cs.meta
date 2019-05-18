@@ -3,7 +3,10 @@ guid: e16dd2ddbdfa7ea4f87a3cfb032ffd0f
 MonoImporter:
   externalObjects: {}
   serializedVersion: 2
-  defaultReferences: []
+  defaultReferences:
+  - computeShader: {fileID: 7200000, guid: 2d4396a54b390d742b84d4bb4a122e54, type: 3}
+  - atmosphereConfig: {fileID: 11400000, guid: 8e73e89daf00b8447b2410427953df25, type: 2}
+  - skyboxMaterial: {instanceID: 0}
   executionOrder: 0
   icon: {instanceID: 0}
   userData: 

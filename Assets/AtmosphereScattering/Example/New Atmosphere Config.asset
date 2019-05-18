@@ -11,8 +11,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a909801085fa7db47939f4858f8f7a1f, type: 3}
   m_Name: New Atmosphere Config
   m_EditorClassIdentifier: 
-  AtmosphereDensity: 1
-  SunRadianceOnAtmosphere: {x: 5, y: 5, z: 5}
+  atmosphereDensity: 1
+  sunIrradianceOnAtmosphere: {x: 5, y: 5, z: 5}
   LightingScale: 1
   atmosphere_top_radius: 6420000
   atmosphere_bot_radius: 6360000

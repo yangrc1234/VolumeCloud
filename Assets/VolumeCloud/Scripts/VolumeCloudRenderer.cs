@@ -42,10 +42,15 @@ namespace Yangrc.VolumeCloud {
     [ExecuteInEditMode,RequireComponent(typeof(Camera))]
     [ImageEffectOpaque]
         public class VolumeCloudRenderer : EffectBase {
+        public Shader cloudShader;
         public VolumeCloudConfiguration configuration;
         [Range(0, 2)]
         public int downSample = 1;
         public Quality quality;
+        public bool allowCloudFrontObject;
+        [SerializeField]
+        [Tooltip("Enable ap calculation using ap system. Do not enable if ap system is not present")]
+        private bool useApSystem;
 
         private Material mat;
         private RenderTexture[] fullBuffer;
@@ -61,14 +66,7 @@ namespace Yangrc.VolumeCloud {
 
         void EnsureMaterial(bool force = false) {
             if (mat == null || force) {
-                var shader = Resources.Load<Shader>("VolumeCloud/Shaders/CloudShader");
-                var baseTex = Resources.Load<Texture3D>("VolumeCloud/Textures/BaseNoise");
-                var detailTex = Resources.Load<Texture3D>("VolumeCloud/Textures/DetailNoise");
-                var curlTex = Resources.Load<Texture2D>("VolumeCloud/Textures/CurlNoise");
-                mat = new Material(shader);
-                mat.SetTexture("_BaseTex", baseTex);
-                mat.SetTexture("_DetailTex", detailTex);
-                mat.SetTexture("_CurlNoise", curlTex);
+                mat = new Material(cloudShader);
             }
         }
 
@@ -90,7 +88,7 @@ namespace Yangrc.VolumeCloud {
         }
 
         private void OnRenderImage(RenderTexture source, RenderTexture destination) {
-            if (this.configuration == null) {
+            if (this.configuration == null || cloudShader == null) {
                 Graphics.Blit(source, destination);
                 return;
             }
@@ -103,9 +101,9 @@ namespace Yangrc.VolumeCloud {
             this.configuration.ApplyToMaterial(this.mat);
 
             EnsureArray(ref fullBuffer, 2);
-            firstFrame |= EnsureRenderTarget(ref fullBuffer[0], width, height, RenderTextureFormat.ARGBHalf, FilterMode.Bilinear);
-            firstFrame |= EnsureRenderTarget(ref fullBuffer[1], width, height, RenderTextureFormat.ARGBHalf, FilterMode.Bilinear);
-            firstFrame |= EnsureRenderTarget(ref undersampleBuffer, width , height, RenderTextureFormat.ARGBHalf, FilterMode.Bilinear);
+            firstFrame |= EnsureRenderTarget(ref fullBuffer[0], width, height, RenderTextureFormat.ARGBFloat, FilterMode.Bilinear);
+            firstFrame |= EnsureRenderTarget(ref fullBuffer[1], width, height, RenderTextureFormat.ARGBFloat, FilterMode.Bilinear);
+            firstFrame |= EnsureRenderTarget(ref undersampleBuffer, width , height, RenderTextureFormat.ARGBFloat, FilterMode.Bilinear);
 
             frameIndex = (frameIndex + 1)% 16;
             fullBufferIndex = (fullBufferIndex + 1) % 2;
@@ -116,10 +114,26 @@ namespace Yangrc.VolumeCloud {
             //If it's first frame, force a high quality sample to make the initial history buffer good enough.
             if (firstFrame || quality == Quality.High) {
                 mat.EnableKeyword("HIGH_QUALITY");
+                mat.DisableKeyword("MEDIUM_QUALITY");
+                mat.DisableKeyword("LOW_QUALITY");
             } else if (quality == Quality.Normal) {
+                mat.DisableKeyword("HIGH_QUALITY");
                 mat.EnableKeyword("MEDIUM_QUALITY");
-            }else if (quality == Quality.Low) {
+                mat.DisableKeyword("LOW_QUALITY");
+            } else if (quality == Quality.Low) {
+                mat.DisableKeyword("HIGH_QUALITY");
+                mat.DisableKeyword("MEDIUM_QUALITY");
                 mat.EnableKeyword("LOW_QUALITY");
+            }
+            if (useApSystem) {
+                mat.EnableKeyword("USE_YANGRC_AP");
+            } else {
+                mat.DisableKeyword("USE_YANGRC_AP");
+            }
+            if (allowCloudFrontObject) {
+                mat.EnableKeyword("ALLOW_CLOUD_FRONT_OBJECT");
+            } else {
+                mat.DisableKeyword("ALLOW_CLOUD_FRONT_OBJECT");
             }
 
             mat.SetVector("_ProjectionExtents", mcam.GetProjectionExtents());

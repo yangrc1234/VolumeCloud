@@ -23,7 +23,7 @@
 
 
 		//Declare these values to use later.
-		float3 _SunRadianceOnAtm;
+		float3 _SunIrradianceOnAtm;
 		sampler3D _CameraVolumeTransmittance;
 		sampler3D _CameraVolumeScattering;
 
@@ -64,7 +64,7 @@
 		void aerialPerspective(Input IN, SurfaceOutputStandard o, inout fixed4 color)
 		{
 			//Edit final color using following formular.
-			color.xyz = color.xyz * IN.ap_transmittance + color.a * IN.ap_scattering * _SunRadianceOnAtm;
+			color.xyz = color.xyz * IN.ap_transmittance + color.a * IN.ap_scattering * _SunIrradianceOnAtm;
 
 			//I'm not pretty familiar with how Unity deal with Transparent and alpha, but it seems to be correct to mult scattering with color.a
 		}

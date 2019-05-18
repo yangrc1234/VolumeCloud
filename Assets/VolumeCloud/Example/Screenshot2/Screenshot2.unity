@@ -38,12 +38,12 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 49040651}
-  m_IndirectSpecularColor: {r: 0.17415419, g: 0.21778312, b: 0.29998314, a: 1}
+  m_IndirectSpecularColor: {r: 0, g: 0, b: 0, a: 1}
 --- !u!157 &3
 LightmapSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 11
-  m_GIWorkflowMode: 0
+  m_GIWorkflowMode: 1
   m_GISettings:
     serializedVersion: 2
     m_BounceScale: 1
@@ -122,7 +122,6 @@ GameObject:
   m_Component:
   - component: {fileID: 49040652}
   - component: {fileID: 49040651}
-  - component: {fileID: 49040653}
   m_Layer: 0
   m_Name: Directional Light
   m_TagString: Untagged
@@ -140,7 +139,7 @@ Light:
   serializedVersion: 8
   m_Type: 1
   m_Color: {r: 1, g: 0.96572006, b: 0.9044118, a: 1}
-  m_Intensity: 1
+  m_Intensity: 1.2
   m_Range: 10
   m_SpotAngle: 30
   m_CookieSize: 10
@@ -172,25 +171,13 @@ Transform:
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 49040650}
-  m_LocalRotation: {x: -0.10578464, y: 0.78707, z: -0.60242575, w: -0.08008519}
+  m_LocalRotation: {x: -0.4160384, y: -0.7035355, z: 0.27857152, w: -0.50432914}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 1
-  m_LocalEulerAnglesHint: {x: 105.149994, y: -360.305, z: 164.457}
---- !u!114 &49040653
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_PrefabParentObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 0}
-  m_GameObject: {fileID: 49040650}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 325c269146dc2ac49b190f730a961573, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  basePosition: {x: 0, y: 2000, z: 0}
+  m_LocalEulerAnglesHint: {x: 485.746, y: -774.878, z: -148.596}
 --- !u!1 &1748146228
 GameObject:
   m_ObjectHideFlags: 0
@@ -200,7 +187,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1748146232}
   - component: {fileID: 1748146231}
-  - component: {fileID: 1748146230}
   - component: {fileID: 1748146229}
   - component: {fileID: 1748146234}
   - component: {fileID: 1748146233}
@@ -214,13 +200,6 @@ GameObject:
   m_IsActive: 1
 --- !u!81 &1748146229
 AudioListener:
-  m_ObjectHideFlags: 0
-  m_PrefabParentObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 0}
-  m_GameObject: {fileID: 1748146228}
-  m_Enabled: 1
---- !u!124 &1748146230
-Behaviour:
   m_ObjectHideFlags: 0
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
@@ -268,13 +247,13 @@ Transform:
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 1748146228}
-  m_LocalRotation: {x: -0.5070659, y: 0.023692379, z: -0.001025462, w: 0.861581}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: 0.40006393, y: 0.3567115, z: 0.16460332, w: -0.82801664}
+  m_LocalPosition: {x: 1417, y: 0, z: -426}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 0
-  m_LocalEulerAnglesHint: {x: -60.892002, y: -715.063, z: -3.0400002}
+  m_LocalEulerAnglesHint: {x: -51.256004, y: -407.176, z: 1.174}
 --- !u!114 &1748146233
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -298,9 +277,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9f1db61281524fb40bc9a1f6acce6baf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  configuration: {fileID: 11400000, guid: a15886e93ac3e7847861da392782f13d, type: 2}
+  cloudShader: {fileID: 4800000, guid: 84e97169589c5e94e8521fe4deb2e3f8, type: 3}
+  configuration: {fileID: 11400000, guid: e9b06b77cd78e5e4b95a6ca30e5f61e7, type: 2}
   downSample: 1
   quality: 0
+  allowCloudFrontObject: 1
+  useApSystem: 0
 --- !u!114 &1748146235
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -23,7 +23,7 @@ namespace Yangrc.AtmosphereScattering {
             public static int absorption_extinction = Shader.PropertyToID("absorption_extinction");
             public static int absorption_extinction_scale_height = Shader.PropertyToID("absorption_extinction_scale_height");
             public static int lightingScale = Shader.PropertyToID("_LightScale");
-            public static int sunRadianceOnAtm = Shader.PropertyToID("_SunRadianceOnAtm");
+            public static int sunIrradianceOnAtm = Shader.PropertyToID("_SunIrradianceOnAtm");
         }
 
         public void Apply(Material mat) {
@@ -32,14 +32,14 @@ namespace Yangrc.AtmosphereScattering {
             Shader.SetGlobalFloat(Keys.atmosphere_sun_angular_radius, atmosphere_sun_angular_radius);
             Shader.SetGlobalVector(Keys.rayleigh_scattering, rayleigh_scattering_spectrum);
             Shader.SetGlobalFloat(Keys.rayleigh_scale_height, rayleigh_scale_height);
-            Shader.SetGlobalFloat(Keys.mie_scattering, AtmosphereDensity  * mie_scattering * MieScatteringConst);
+            Shader.SetGlobalFloat(Keys.mie_scattering, atmosphereDensity  * mie_scattering * MieScatteringConst);
             Shader.SetGlobalFloat(Keys.mie_extinction, mie_extinction_spectrum);
             Shader.SetGlobalFloat(Keys.mie_scale_height, mie_scale_height);
             Shader.SetGlobalFloat(Keys.mie_phase_function_g, mie_phase_function_g);
             Shader.SetGlobalVector(Keys.absorption_extinction, ozone_extinction_spectrum);
             Shader.SetGlobalFloat(Keys.absorption_extinction_scale_height, ozone_scale_height);
             Shader.SetGlobalFloat(Keys.lightingScale, LightingScale);
-            Shader.SetGlobalVector(Keys.sunRadianceOnAtm, SunRadianceOnAtmosphere);
+            Shader.SetGlobalVector(Keys.sunIrradianceOnAtm, sunIrradianceOnAtmosphere);
         }
 
         public void Apply(ComputeShader shader) {
@@ -48,17 +48,17 @@ namespace Yangrc.AtmosphereScattering {
             shader.SetFloat(Keys.atmosphere_sun_angular_radius, atmosphere_sun_angular_radius);
             shader.SetVector(Keys.rayleigh_scattering, rayleigh_scattering_spectrum);
             shader.SetFloat(Keys.rayleigh_scale_height, rayleigh_scale_height);
-            shader.SetFloat(Keys.mie_scattering, AtmosphereDensity * mie_scattering * MieScatteringConst);
+            shader.SetFloat(Keys.mie_scattering, atmosphereDensity * mie_scattering * MieScatteringConst);
             shader.SetFloat(Keys.mie_extinction, mie_extinction_spectrum);
             shader.SetFloat(Keys.mie_scale_height, mie_scale_height);
             shader.SetFloat(Keys.mie_phase_function_g, mie_phase_function_g);
             shader.SetVector(Keys.absorption_extinction, ozone_extinction_spectrum);
             shader.SetFloat(Keys.absorption_extinction_scale_height, ozone_scale_height);
-            shader.SetVector(Keys.sunRadianceOnAtm, SunRadianceOnAtmosphere);
+            shader.SetVector(Keys.sunIrradianceOnAtm, sunIrradianceOnAtmosphere);
         }
 
-        public float AtmosphereDensity = 1.0f;
-        public Vector3 SunRadianceOnAtmosphere = new Vector3(1.0f, 1.0f, 1.0f);
+        public float atmosphereDensity = 1.0f;
+        public Vector3 sunIrradianceOnAtmosphere = new Vector3(1.0f, 1.0f, 1.0f);
         public float LightingScale = 2.0f * 3.1415926f;
         public float atmosphere_top_radius = 6.36e6f + 6e4f;
         public float atmosphere_bot_radius = 6.36e6f;
@@ -67,12 +67,12 @@ namespace Yangrc.AtmosphereScattering {
         public float rayleigh_scale_height = 8000.0f;
         public Vector3 rayleigh_scattering_spectrum {
             get {
-                return AtmosphereDensity * rayleigh_scattering * RayleighScatteringConst;
+                return atmosphereDensity * rayleigh_scattering * RayleighScatteringConst;
             }
         }
         public Vector3 ozone_extinction_spectrum {
             get {
-                return AtmosphereDensity * OZoneConst * ozone_extinction;
+                return atmosphereDensity * OZoneConst * ozone_extinction;
             }
         }
         public float mie_scattering = 1.0f;
@@ -83,7 +83,7 @@ namespace Yangrc.AtmosphereScattering {
         }
         public float mie_extinction_spectrum {
             get {
-                return AtmosphereDensity * mie_extinction * MieScatteringConst;
+                return atmosphereDensity * mie_extinction * MieScatteringConst;
             }
         }
         public float mie_scale_height = 1200.0f;
@@ -92,9 +92,9 @@ namespace Yangrc.AtmosphereScattering {
         public float ozone_scale_height = 1000.0f;
 
         public void CopyDataFrom(AtmosphereConfig config) {
-            this.AtmosphereDensity = config.AtmosphereDensity;
+            this.atmosphereDensity = config.atmosphereDensity;
             this.LightingScale = config.LightingScale;
-            this.SunRadianceOnAtmosphere = config.SunRadianceOnAtmosphere;
+            this.sunIrradianceOnAtmosphere = config.sunIrradianceOnAtmosphere;
             this.atmosphere_top_radius = config.atmosphere_top_radius;
             this.atmosphere_bot_radius = config.atmosphere_bot_radius;
             this.atmosphere_sun_angular_radius = config.atmosphere_sun_angular_radius;

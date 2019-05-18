@@ -36,16 +36,39 @@ Shader "Unlit/CloudShader"
 		_AmbientColor("AmbientColor", Color) = (1,1,1,1)
 		_AtmosphereColor("AtmosphereColor" , Color) = (1,1,1,1)
 		_AtmosphereColorSaturateDistance("AtmosphereColorSaturateDistance", float) = 80000
-		
 	}
+
 		SubShader
 		{
+
+			CGINCLUDE
+
+			float GetRaymarchEndFromSceneDepth(float sceneDepth) {
+				float raymarchEnd = 0.0f;
+	#if ALLOW_CLOUD_FRONT_OBJECT
+				if (sceneDepth == 1.0f) {	//it's far plane.
+					raymarchEnd = 1e7;
+				}
+				else {
+					raymarchEnd = sceneDepth * _ProjectionParams.z;	//raymarch to scene depth.
+				}
+	#else
+				raymarchEnd = 1e8;	//Always raymarch. 
+				//Note: In horizon:zero dawn, they clip some part using lod(use max operator) z-buffer. 
+				//I don't implement here cause that's exactly what hi-z buffer does, and any production rendering pipeline should share a hi-z buffer by their own.
+	#endif
+				return raymarchEnd;
+			}
+			ENDCG
+
 			Cull Off ZWrite Off ZTest Always
 			//Pass1, Render a undersampled buffer. The buffer is dithered using bayer matrix(every 3x3 pixel) and halton sequence.
 			//Why does it need a bayer matrix as offset? See technical overview on github page.
 			Pass
 			{
 			CGPROGRAM
+			#pragma multi_compile _ ALLOW_CLOUD_FRONT_OBJECT		//When enabled, raymarch is marched until scene depth. This will bring some artifacts when objects move in front of cloud.
+																//Or disable, cloud is always behind object, and raymarch is ended if any z is detected.
 			#pragma multi_compile LOW_QUALITY MEDIUM_QUALITY HIGH_QUALITY	//High quality uses more samples.
 			#pragma vertex vert
 			#pragma fragment frag
@@ -96,27 +119,23 @@ Shader "Unlit/CloudShader"
 				float3 vspos = float3(i.vsray, 1.0);
 				float4 worldPos = mul(unity_CameraToWorld,float4(vspos,1.0));
 				worldPos /= worldPos.w;
-				float sceneDepth = LinearEyeDepth(tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(i.screenPos)).r); 
-				if (sceneDepth > _ProjectionParams.z - 1) {	//it's far plane.
-					sceneDepth += 100000;		//extend it, so that in raymarch later we could raymarch beyond far plane.
-				}
+				
+				float sceneDepth = Linear01Depth(tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(i.screenPos)).r);
+				float raymarchEnd = GetRaymarchEndFromSceneDepth(sceneDepth);
 				float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
 				int sample_count = lerp(MAX_SAMPLE_COUNT, MIN_SAMPLE_COUNT, abs(viewDir.y));	//dir.y ==0 means horizontal, use maximum sample count
 
 				float2 screenPos = i.screenPos.xy / i.screenPos.w;
 				int2 texelID = int2(fmod(screenPos/ _TexelSize , 3.0));	//Calculate a texel id to index bayer matrix.
-																					//TODO: There should be a better idea than directly offset it with Time.
-
+										
 				float bayerOffset = (bayerOffsets[texelID.x][texelID.y]) / 9.0f;	//bayeroffset between[0,1)
 				float offset = -fmod(_RaymarchOffset + bayerOffset, 1.0f);			//final offset combined. The value will be multiplied by sample step in GetDensity.
 
-
 				float intensity, distance;
 				//TODO: sceneDepth here is distance in camera z-axis, but the parameter should be radial distance.
-				float density = GetDensity(worldPos, viewDir, sceneDepth, sample_count, offset, /*out*/intensity, /*out*/distance);
+				float density = GetDensity(worldPos, viewDir, raymarchEnd, sample_count, offset, /*out*/intensity, /*out*/distance);
 
-				/*RGBA: direct intensity, depth(this is differenct from the slide), ambient, alpha*/
-				return float4(intensity, distance, /*ambient haven't implemented yet */1, density);
+				return float4(intensity, distance, 1.0f, density);
 			}
 
 			ENDCG
@@ -127,6 +146,7 @@ Shader "Unlit/CloudShader"
 				CGPROGRAM
 				#pragma vertex vert
 				#pragma fragment frag
+				#pragma multi_compile _ ALLOW_CLOUD_FRONT_OBJECT
 				#pragma multi_compile LOW_QUALITY MEDIUM_QUALITY HIGH_QUALITY	
 
 				#include "./CloudShaderHelper.cginc"
@@ -179,15 +199,15 @@ Shader "Unlit/CloudShader"
 				}
 
 				//Code from https://zhuanlan.zhihu.com/p/64993622. Do AABB clip in TAA(clip to center).
-				half4 ClipAABB(half4 aabbMin, half4 aabbMax, half4 prevSample)
+				float4 ClipAABB(float4 aabbMin, float4 aabbMax, float4 prevSample)
 				{
 					// note: only clips towards aabb center (but fast!)
-					half4 p_clip = 0.5 * (aabbMax + aabbMin);
-					half4 e_clip = 0.5 * (aabbMax - aabbMin);
+					float4 p_clip = 0.5 * (aabbMax + aabbMin);
+					float4 e_clip = 0.5 * (aabbMax - aabbMin);
 
-					half4 v_clip = prevSample - p_clip;
-					half4 v_unit = v_clip / e_clip;
-					half4 a_unit = abs(v_unit);
+					float4 v_clip = prevSample - p_clip;
+					float4 v_unit = v_clip / e_clip;
+					float4 a_unit = abs(v_unit);
 					float ma_unit = max(max(a_unit.x, max(a_unit.y, a_unit.z)), a_unit.w);
 
 					if (ma_unit > 1.0)
@@ -198,7 +218,7 @@ Shader "Unlit/CloudShader"
 				
 				//Sample count used when out of screen bound.
 				#define OOB_SAMPLE_COUNT 32
-				half4 frag(v2f i) : SV_Target
+				float4 frag(v2f i) : SV_Target
 				{
 					float3 vspos = float3(i.vsray, 1.0);
 					float4 worldPos = mul(unity_CameraToWorld, float4(vspos, 1.0f));
@@ -206,17 +226,12 @@ Shader "Unlit/CloudShader"
 					float4 raymarchResult = tex2D(_UndersampleCloudTex, i.uv);
 					float distance = raymarchResult.y;		
 					float intensity = raymarchResult.x;
-
 					half outOfBound;
 					float2 prevUV = PrevUV(mul(unity_CameraToWorld, float4(normalize(vspos) * distance, 1.0)), outOfBound);	//find uv in history buffer.
 					
 					if (outOfBound > 0.5f) {	//Can't find history info, do an extra raymarch to fix it.
-						float sceneDepth = LinearEyeDepth(tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(i.screenPos)).r);
-						//return depthValue;
-						if (sceneDepth > _ProjectionParams.z - 1) {	//it's far plane.
-							sceneDepth += 100000;		//makes it work even with very low far plane value.
-						}
-
+						float sceneDepth = Linear01Depth(tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(i.screenPos)).r);
+						float raymarchEnd = GetRaymarchEndFromSceneDepth(sceneDepth);
 						float2 screenPos = i.screenPos.xy / i.screenPos.w;
 						int2 texelID = int2(fmod((screenPos + _Time.x) / _TexelSize, 3.0));
 						float bayerOffset = (bayerOffsets[texelID.x][texelID.y]) / 9.0f;
@@ -224,11 +239,11 @@ Shader "Unlit/CloudShader"
 
 						float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
 						//TODO: sceneDepth here is distance in camera z-axis, but the parameter should be real distance, fix it.
-						float density = GetDensity(worldPos, viewDir, sceneDepth, OOB_SAMPLE_COUNT, offset, intensity, distance);
-						raymarchResult = float4(intensity, distance, 1, density);
+						float density = GetDensity(worldPos, viewDir, raymarchEnd, OOB_SAMPLE_COUNT, offset, intensity, distance);
+						raymarchResult = float4(intensity, distance, 1.0f, density);
 					}
 					else {	//Do temporal reprojection and clip things.
-						half4 prevSample = tex2D(_MainTex, prevUV);
+						float4 prevSample = tex2D(_MainTex, prevUV);
 						float2 xoffset = float2(_UndersampleCloudTex_TexelSize.x, 0.0f);
 						float2 yoffset = float2(0.0f, _UndersampleCloudTex_TexelSize.y);
 
@@ -238,7 +253,7 @@ Shader "Unlit/CloudShader"
 						for (int x = -1; x <= 1; x ++) {
 							[unroll]
 							for (int y = -1; y <= 1; y ++ ) {
-								half4 val;
+								float4 val;
 								if (x == 0 && y == 0) {
 									val = raymarchResult;
 								}
@@ -271,6 +286,8 @@ Shader "Unlit/CloudShader"
 				CGPROGRAM
 				#pragma vertex vert
 				#pragma fragment frag
+				#pragma multi_compile _ ALLOW_CLOUD_FRONT_OBJECT
+				#pragma multi_compile _ USE_YANGRC_AP
 
 				#include "UnityCG.cginc"
 				#include "Lighting.cginc"
@@ -319,10 +336,9 @@ Shader "Unlit/CloudShader"
 					float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
 
 					half4 mcol = tex2D(_MainTex,i.uv);
-					half4 currSample = tex2D(_CloudTex, i.uv);
+					float4 currSample = tex2D(_CloudTex, i.uv);
 
-					half depth = currSample.g;
-					//return depth;
+					float depth = currSample.g;
 					
 					float3 sunColor;
 #ifdef USE_YANGRC_AP
@@ -332,46 +348,54 @@ Shader "Unlit/CloudShader"
 						float r, mu, mu_s, nu;
 						CalculateRMuMusFromPosViewdir(GetAtmParameters(), estimatedCloudCenter, viewDir, _WorldSpaceLightPos0, r, mu, mu_s, nu);
 						float3 transmittance = GetTransmittanceToTopAtmosphereBoundaryLerped(r, mu_s);
-						sunColor = transmittance * _SunRadianceOnAtm;
+						sunColor = transmittance * _SunIrradianceOnAtm;
 					}
 #else
-					sunColor = _LightColor0.rgb * 3.1415926;
+					sunColor = _LightColor0.rgb;
 #endif
-					half4 result;
+					float4 result;
 					result.rgb = currSample.r * sunColor + currSample.b *_AmbientColor * currSample.a;
 					result.a = currSample.a;
 #ifdef USE_YANGRC_AP
-					///* Calculate ap */
-					float r, mu, mu_s, nu;
-					float r_d, mu_d, mu_s_d;	//Current pixel on screen's info
-					AtmosphereParameters atm = GetAtmParameters();
-					CalculateRMuMusFromPosViewdir(atm, _WorldSpaceCameraPos, viewDir, _WorldSpaceLightPos0, r, mu, mu_s, nu);
-					float d1, d2;
-					bool ray_r_mu_intersects_ground = RayIntersectsGround(atm, r, mu, d1, d2);
-					CalculateRMuMusForDistancePoint(atm, r, mu, mu_s, nu, depth, r_d, mu_d, mu_s_d);
+					{
+						///* Calculate ap */
+						float r, mu, mu_s, nu;
+						float r_d, mu_d, mu_s_d;	//Current pixel on screen's info
+						AtmosphereParameters atm = GetAtmParameters();
+						CalculateRMuMusFromPosViewdir(atm, _WorldSpaceCameraPos, viewDir, _WorldSpaceLightPos0, r, mu, mu_s, nu);
+						float d1, d2;
+						bool ray_r_mu_intersects_ground = RayIntersectsGround(atm, r, mu, d1, d2);
+						CalculateRMuMusForDistancePoint(atm, r, mu, mu_s, nu, depth, r_d, mu_d, mu_s_d);
 
-					//Transmittance to target point.
-					float3 transmittanceToTarget = GetTransmittanceLerped(r, mu, depth, ray_r_mu_intersects_ground);
+						//Transmittance to target point.
+						float3 transmittanceToTarget = GetTransmittanceLerped(r, mu, depth, ray_r_mu_intersects_ground);
+					
+						//Here the two ray (r, mu) and (r_d, mu_d) is pointing same direction. 
+						//so ray_r_mu_intersects_ground should apply to both of them. 
+						//If we do intersect calculation later, some precision problems might appear, causing glitches near horizontal view dir.
+						float3 scatteringBetween =
+							GetTotalScatteringLerped(r, mu, mu_s, nu, ray_r_mu_intersects_ground)
+							- GetTotalScatteringLerped(r_d, mu_d, mu_s_d, nu, ray_r_mu_intersects_ground) * transmittanceToTarget;
 
-					//Here the two ray (r, mu) and (r_d, mu_d) is pointing same direction. 
-					//so ray_r_mu_intersects_ground should apply to both of them. 
-					//If we do intersect calculation later, some precision problems might appear, causing glitches near horizontal view dir.
-					float3 scatteringBetween =
-						GetTotalScatteringLerped(r, mu, mu_s, nu, ray_r_mu_intersects_ground)
-						- GetTotalScatteringLerped(r_d, mu_d, mu_s_d, nu, ray_r_mu_intersects_ground) * transmittanceToTarget;
-
-					result.rgb = result.rgb * transmittanceToTarget + scatteringBetween;
+						result.rgb = result.rgb * transmittanceToTarget + scatteringBetween;
+					}
 #else
-					float atmosphericBlendFactor = saturate(pow(depth / _AtmosphereColorSaturateDistance, 0.6));
-					result.a *= 1.0f - atmosphericBlendFactor;
+					float atmosphericBlendFactor = exp(-saturate(depth / _AtmosphereColorSaturateDistance));
+					result.a *= atmosphericBlendFactor;
 #endif
 
-					float originalDepthValue = LinearEyeDepth(tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(i.screenPos)).r);
-					//only if depthValue is nearly at the far clip plane, we use cloud.
-					//if (originalDepthValue > _ProjectionParams.z - 100) {
+#if ALLOW_CLOUD_FRONT_OBJECT	//The result calculated from previous pass is already the part in front of object.
+					return half4(mcol.rgb * (1 - result.a) + result.rgb * result.a, 1);
+#else
+					//Only use cloud if no object detected in z-buffer.
+					float sceneDepth = Linear01Depth(tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(i.screenPos)).r);
+					if (sceneDepth == 1.0f) {
 						return half4(mcol.rgb * (1 - result.a) + result.rgb * result.a, 1);
-					//}
-					return mcol;
+					}
+					else {
+						return mcol;
+					}
+#endif
 				}
 					ENDCG
 				}

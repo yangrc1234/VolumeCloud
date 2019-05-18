@@ -152,7 +152,7 @@ namespace Yangrc.AtmosphereScattering {
         }
 
         public Vector3 GetRadianceAt(float mu_s, Vector3 basePosition) {
-            var t = atmosphereConfig.SunRadianceOnAtmosphere;
+            var t = atmosphereConfig.sunIrradianceOnAtmosphere;
             var r = basePosition + new Vector3(0.0f, atmosphereConfig.atmosphere_bot_radius, 0.0f);
             var transmittance = TransmittanceCalculate.GetTransmittanceToSun(atmosphereConfig, r.magnitude, mu_s);
             t.Scale(transmittance);

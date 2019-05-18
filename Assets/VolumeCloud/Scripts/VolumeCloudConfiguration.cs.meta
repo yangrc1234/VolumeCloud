@@ -1,11 +1,14 @@
 fileFormatVersion: 2
 guid: edad34612c85d2e4da1745df6c135220
-timeCreated: 1523161313
-licenseType: Free
 MonoImporter:
   externalObjects: {}
   serializedVersion: 2
-  defaultReferences: []
+  defaultReferences:
+  - baseTexture: {fileID: 11700000, guid: 3ed67598438ec1e4dba28385e35a557b, type: 2}
+  - heightDensityMap: {fileID: 2800000, guid: a27c79a96e56b794a9bcb99b3b2df92b, type: 3}
+  - detailTexture: {fileID: 11700000, guid: c978a1d1fdb99d54eb7910eb562fcbd7, type: 2}
+  - curlNoise: {fileID: 2800000, guid: 864afbdb4b1b36c42be5cac8f2556237, type: 2}
+  - weatherTex: {fileID: 2800000, guid: c73be893af46a1e4db152d42aacae768, type: 3}
   executionOrder: 0
   icon: {instanceID: 0}
   userData: 

@@ -3,7 +3,7 @@
 #define THICKNESS 8000.0
 #define CENTER 5500.0
 
-#define EARTH_RADIUS 5000000.0
+#define EARTH_RADIUS 6371000.0
 #define EARTH_CENTER float3(0, -EARTH_RADIUS, 0)
 #define CLOUDS_START (CENTER - THICKNESS/2)
 #define CLOUDS_END (CENTER + THICKNESS/2)
@@ -255,7 +255,7 @@ bool resolve_ray_start_end(float3 ws_origin, float3 ws_ray, out float3 start, ou
 	return true;
 }
  
-float GetDensity(float3 startPos, float3 dir,float maxSampleDistance, int sample_count, float raymarchOffset, out float intensity,out float depth) {
+float GetDensity(float3 startPos, float3 dir, float maxSampleDistance, int sample_count, float raymarchOffset, out float intensity,out float depth) {
 	float3 sampleStart, sampleEnd;
 
 	if (!resolve_ray_start_end(startPos, dir, sampleStart, sampleEnd)) {
@@ -272,21 +272,19 @@ float GetDensity(float3 startPos, float3 dir,float maxSampleDistance, int sample
 		return 0.0;
 	}
 
+	float startPosToSampleStart = length(sampleStart - startPos);
+
 	float intTransmittance = 1.0f;
 	float alpha = 0;
 	intensity = 0;
-	bool detailedSample = false;
-	int missedStepCount = 0;
-
 	float depthweightsum = 0.00001f;
-
 	float raymarchDistance = raymarchOffset * sample_step;
 
 	[loop]
 	for (int j = 0; j < sample_count; j++, raymarchDistance += sample_step) {
 		float wetness;
 		float3 rayPos = sampleStart + dir * raymarchDistance;
-		if (raymarchDistance > maxSampleDistance) {
+		if (raymarchDistance + startPosToSampleStart > maxSampleDistance) {
 			break;
 		}
 

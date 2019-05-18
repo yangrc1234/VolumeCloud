@@ -6,6 +6,7 @@ namespace Yangrc.VolumeCloud {
     [CreateAssetMenu]
     public class VolumeCloudConfiguration : ScriptableObject {
         [Header("Shape")]
+        public Texture3D baseTexture;
         [Range(0, 5)]
         public float baseTile = 2.0f;
         public Texture2D heightDensityMap;
@@ -13,12 +14,14 @@ namespace Yangrc.VolumeCloud {
         public float topOffset = 0.0f;
 
         [Header("Shape - Detail")]
+        public Texture3D detailTexture;
         [Range(0, 80)]
         public float detailTile = 36.0f;
         [Range(.01f, .5f)]
         public float detailStrength = 0.2f;
 
         [Header("Shape - Curl")]
+        public Texture2D curlNoise;
         [Range(0.001f, 1.0f)]
         public float curlTile = 0.01f;
         public float curlStrength = 5.0f;
@@ -67,20 +70,25 @@ namespace Yangrc.VolumeCloud {
 
         private class PropertyHash {
             public static int baseTex = Shader.PropertyToID("_BaseTex");
-            public static int heightDensity = Shader.PropertyToID("_HeightDensity");
-            public static int detailTex = Shader.PropertyToID("_DetailTex");
-            public static int curlNoise = Shader.PropertyToID("_CurlNoise");
-
             public static int baseTile = Shader.PropertyToID("_BaseTile");
+
+            public static int detailTex = Shader.PropertyToID("_DetailTex");
             public static int detailTile = Shader.PropertyToID("_DetailTile");
             public static int detailStrength = Shader.PropertyToID("_DetailStrength");
+
+            public static int curlNoise = Shader.PropertyToID("_CurlNoise");
             public static int curlTile = Shader.PropertyToID("_CurlTile");
             public static int curlStrength = Shader.PropertyToID("_CurlStrength");
+
+            public static int heightDensity = Shader.PropertyToID("_HeightDensity");
+
             public static int topOffset = Shader.PropertyToID("_CloudTopOffset");
             public static int cloudSize = Shader.PropertyToID("_CloudSize");
+
             public static int cloudOverallDensity = Shader.PropertyToID("_CloudOverallDensity");
             public static int cloudTypeModifier = Shader.PropertyToID("_CloudTypeModifier");
             public static int cloudCoverageModifier = Shader.PropertyToID("_CloudCoverageModifier");
+
             public static int windDirection = Shader.PropertyToID("_WindDirection");
             public static int weatherTex = Shader.PropertyToID("_WeatherTex");
             public static int weatherTexSize = Shader.PropertyToID("_WeatherTexSize");
@@ -96,9 +104,14 @@ namespace Yangrc.VolumeCloud {
         }
 
         public void ApplyToMaterial(Material mat) {
+            mat.SetTexture(PropertyHash.baseTex, baseTexture);
+            mat.SetTexture(PropertyHash.detailTex, detailTexture);
+            mat.SetTexture(PropertyHash.curlNoise, curlNoise);
+
             mat.SetFloat(PropertyHash.baseTile, baseTile);
             mat.SetTexture(PropertyHash.heightDensity, heightDensityMap);
             mat.SetFloat(PropertyHash.detailTile, detailTile);
+
             mat.SetFloat(PropertyHash.detailStrength, detailStrength);
             mat.SetFloat(PropertyHash.curlTile, curlTile);
             mat.SetFloat(PropertyHash.curlStrength, curlStrength);

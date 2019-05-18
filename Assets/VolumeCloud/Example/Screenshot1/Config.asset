@@ -11,19 +11,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: edad34612c85d2e4da1745df6c135220, type: 3}
   m_Name: Config
   m_EditorClassIdentifier: 
+  baseTexture: {fileID: 11700000, guid: 3ed67598438ec1e4dba28385e35a557b, type: 2}
   baseTile: 2
   heightDensityMap: {fileID: 2800000, guid: a27c79a96e56b794a9bcb99b3b2df92b, type: 3}
   overallSize: 50000
   topOffset: 0
+  detailTexture: {fileID: 11700000, guid: c978a1d1fdb99d54eb7910eb562fcbd7, type: 2}
   detailTile: 36
   detailStrength: 0.2
+  curlNoise: {fileID: 2800000, guid: 864afbdb4b1b36c42be5cac8f2556237, type: 2}
   curlTile: 0.01
   curlStrength: 5
   overallDensity: 1
   cloudTypeModifier: 1
   cloudCoverageModifier: 1
   windDirection: {x: 1, y: 1}
-  windSpeed: 40
+  windSpeed: 0
   ambientColor: {r: 0.29525304, g: 0.29626313, b: 0.31617647, a: 0.02745098}
   scatteringCoefficient: 0.5
   extinctionCoefficient: 0.52
@@ -32,5 +35,5 @@ MonoBehaviour:
   multiScatteringEC: 0.5
   silverSpread: 0.1
   atmosphereSaturateDistance: 60000
-  weatherTex: {fileID: 2800000, guid: c73be893af46a1e4db152d42aacae768, type: 3}
+  weatherTex: {fileID: 2800000, guid: 4f3f3112dcf000b47ac790c3b15cf3ec, type: 3}
   weatherTexSize: 50000
