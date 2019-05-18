@@ -1,7 +1,7 @@
 ﻿// Upgrade NOTE: commented out 'float4x4 _CameraToWorld', a built-in variable
 // Upgrade NOTE: replaced '_CameraToWorld' with 'unity_CameraToWorld'
 
-Shader "Unlit/CloudShader"
+Shader "Yangrc/CloudShader"
 {
 	Properties
 	{
@@ -216,8 +216,6 @@ Shader "Unlit/CloudShader"
 						return prevSample;// point inside aabb
 				}
 				
-				//Sample count used when out of screen bound.
-				#define OOB_SAMPLE_COUNT 32
 				float4 frag(v2f i) : SV_Target
 				{
 					float3 vspos = float3(i.vsray, 1.0);
@@ -229,20 +227,7 @@ Shader "Unlit/CloudShader"
 					half outOfBound;
 					float2 prevUV = PrevUV(mul(unity_CameraToWorld, float4(normalize(vspos) * distance, 1.0)), outOfBound);	//find uv in history buffer.
 					
-					if (outOfBound > 0.5f) {	//Can't find history info, do an extra raymarch to fix it.
-						float sceneDepth = Linear01Depth(tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(i.screenPos)).r);
-						float raymarchEnd = GetRaymarchEndFromSceneDepth(sceneDepth);
-						float2 screenPos = i.screenPos.xy / i.screenPos.w;
-						int2 texelID = int2(fmod((screenPos + _Time.x) / _TexelSize, 3.0));
-						float bayerOffset = (bayerOffsets[texelID.x][texelID.y]) / 9.0f;
-						float offset = bayerOffset;
-
-						float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
-						//TODO: sceneDepth here is distance in camera z-axis, but the parameter should be real distance, fix it.
-						float density = GetDensity(worldPos, viewDir, raymarchEnd, OOB_SAMPLE_COUNT, offset, intensity, distance);
-						raymarchResult = float4(intensity, distance, 1.0f, density);
-					}
-					else {	//Do temporal reprojection and clip things.
+					{	//Do temporal reprojection and clip things.
 						float4 prevSample = tex2D(_MainTex, prevUV);
 						float2 xoffset = float2(_UndersampleCloudTex_TexelSize.x, 0.0f);
 						float2 yoffset = float2(0.0f, _UndersampleCloudTex_TexelSize.y);

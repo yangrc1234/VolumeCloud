@@ -300,8 +300,10 @@ float GetDensity(float3 startPos, float3 dir, float maxSampleDistance, int sampl
 		float integScatt = (luminance - luminance * transmittance) / clampedExtinction;
 
 		intensity += intTransmittance * integScatt;
-		depth += intTransmittance * length(rayPos - startPos);
-		depthweightsum += intTransmittance;
+
+		float depthWeight = intTransmittance;		//Is it a better idead to use (1-transmittance) * intTransmittance as depth weight?
+		depth += depthWeight * length(rayPos - startPos);
+		depthweightsum += depthWeight;
 
 		intTransmittance *= transmittance;
 	}

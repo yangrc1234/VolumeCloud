@@ -5,6 +5,12 @@ using UnityEngine;
 namespace Yangrc.VolumeCloud {
     [CreateAssetMenu]
     public class VolumeCloudConfiguration : ScriptableObject {
+
+        [Header("Weather map")]
+        [Tooltip("R for coverage, G for density, B for cloud type")]
+        public Texture2D weatherTex;
+        public float weatherTexSize = 40000;
+
         [Header("Shape")]
         public Texture3D baseTexture;
         [Range(0, 5)]
@@ -62,11 +68,6 @@ namespace Yangrc.VolumeCloud {
 
         [Header("Lighting - Atmosphere")]
         public float atmosphereSaturateDistance = 100000.0f;
-
-        [Header("Weather map")]
-        [Tooltip("R for coverage, G for density, B for cloud type")]
-        public Texture2D weatherTex;
-        public float weatherTexSize = 40000;
 
         private class PropertyHash {
             public static int baseTex = Shader.PropertyToID("_BaseTex");
