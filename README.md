@@ -3,7 +3,7 @@
 ![](./Screenshots/2.png)
 ![](./Screenshots/3.png)
 Cloud rendering by volume raymarching for Unity3d standard rendering pipeline.  
-The first screenshot is rendered in combination with my atmosphere scattering system(https://github.com/yangrc1234/AtmosphereScatter), it's not very optimized though.  
+The first screenshot is rendered in combination with my atmosphere scattering system([Here](https://github.com/yangrc1234/AtmosphereScatter))(The ap system is just my hobby project, not optimized at all).  
 The second and third screenshot is rendered without any dependency.
 
 # Quick startup
@@ -62,6 +62,11 @@ Atmosphere saturate distance indicates how far will the cloud be invisible due t
 ## Wind  
 Wind effect simulates the cloud moving by rotating the noise texture. So the overall cloud position won't be changed.  
 
+# Misc
+
+## Benchmark
+Incoming.
+
 ## TODO
 - [x] Add aerial perspective things.  
 - [ ] Extend view distance above cloud.
@@ -78,11 +83,11 @@ Wind effect simulates the cloud moving by rotating the noise texture. So the ove
 
 ## History.
 18/4/15 - Fixed "band" glitch.  
-18/7/7 - Added low-resolution rendering.  
-18/10/28 - Added Height-Density map from [4]
-19/3/2 - Added depth estimation stuff, reduced blur problem when rotating camera.
-19/3/4 - Rewrite lighting code, using methods from [4], it should be very "physically based" now.
-19/5/18 - Rewrite raymarch and TAA. The 4x4 pattern is obsoleted. A full-screen raymarch with much lower sample count and temporal reprojection is used now.
+18/7/7 - Added low-resolution rendering.    
+18/10/28 - Added Height-Density map from [4]  
+19/3/2 - Added depth estimation stuff, reduced blur problem when rotating camera.  
+19/3/4 - Rewrite lighting code, using methods from [4], it should be very "physically based" now.  
+19/5/18 - Rewrite raymarch and TAA. The 4x4 pattern is obsoleted. A full-screen raymarch with much lower sample count and temporal reprojection is used now.  
 
 # Implementation Details  
 This section describes some details about implementation. It's for developers who are also working on volume cloud. So some common topics won't be covered here. If you want to see the full pipeline, check the talks/articles in references.
