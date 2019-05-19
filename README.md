@@ -93,7 +93,7 @@ In the first version I implemented I chose to use the 4x4 way, but now I chose t
 
 ## Passes  
 Three passes are required in my implementation.  
-First pass renders an undersampled result for current frame. Second frame uses the result of first pass and history buffer to combine final result for this frame. Here the buffer stores sun intensity, estimated cloud depth and transmittance.  
+First pass renders an undersampled result for current frame. Second pass uses the result of first pass and history buffer to combine final result for this frame. Here the buffer stores sun intensity, estimated cloud depth and transmittance.  
 Third pass does lighting using result of second pass, then blend with final image.  
 
 ## Raymarch Offset 
