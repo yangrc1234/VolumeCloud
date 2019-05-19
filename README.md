@@ -3,7 +3,7 @@
 ![](./Screenshots/2.png)
 ![](./Screenshots/3.png)
 Cloud rendering by volume raymarching for Unity3d standard rendering pipeline.  
-The first screenshot is rendered in combination with my atmosphere scattering system([Here](https://github.com/yangrc1234/AtmosphereScatter))(The ap system is just my hobby project, not optimized at all).  
+The first screenshot is rendered in combination with my atmosphere scattering system([Here](https://github.com/yangrc1234/AtmosphereScatter))(The ap system is just my hobby project, not optimized at all. It's included in this repo, use it at your own risk).  
 The second and third screenshot is rendered without any dependency.
 
 # Quick startup
@@ -66,6 +66,9 @@ Wind effect simulates the cloud moving by rotating the noise texture. So the ove
 
 ## Benchmark
 Incoming.
+
+## Known issues
+Object edge glitch when allow cloud front is checked and downsampled, due to edge-preserving upsample is not implemented yet.
 
 ## TODO
 - [x] Add aerial perspective things.  
