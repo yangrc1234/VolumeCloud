@@ -2,7 +2,7 @@
 ![](./Screenshots/1.png)
 ![](./Screenshots/2.png)
 ![](./Screenshots/3.png)
-Cloud rendering by volume raymarching for Unity3d standard rendering pipeline.  
+**Volume Cloud for Unity3D** is a plugin for rendering cloud using raymarch. For now only compatible with standard rendering pipeline.  
 The first screenshot is rendered in combination with my atmosphere scattering system([Here](https://github.com/yangrc1234/AtmosphereScatter))(The ap system is just my hobby project, not optimized at all. It's included in this repo, use it at your own risk).  
 The second and third screenshot is rendered without any dependency.
 
