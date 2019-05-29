@@ -106,6 +106,12 @@ float HenryGreenstein(float g, float cosTheta) {
 	return k * (1.0 + cosTheta * cosTheta) / pow(abs(1.0 + g * g - 2.0 * g * cosTheta), 1.5);
 }
 
+float ApplyCoverageToDensity(float sampleResult, float coverage){
+	sampleResult = RemapClamped(sampleResult, 1.0 - coverage, 1.0, 0.0, 1.0);
+	sampleResult *= cloudCoverage.x;
+	return sampleResult;
+}
+
 float SampleDensity(float3 worldPos,int lod, bool cheap, out float wetness) {
 	//Store the pos without wind applied.
 	float3 unwindWorldPos = worldPos;
@@ -137,8 +143,7 @@ float SampleDensity(float3 worldPos,int lod, bool cheap, out float wetness) {
 
 	sampleResult *= densityAndErodeness.x;
 	//Clip the result using coverage map.
-	sampleResult = RemapClamped(sampleResult, 1.0 - cloudCoverage.x, 1.0, 0.0, 1.0);
-	sampleResult *= cloudCoverage.x;
+	sampleResult = ApplyCoverageToDensity(sampleResult, cloudCoverage);
 
 	if (!cheap) {
 		float2 curl_noise = tex2Dlod(_CurlNoise, float4(unwindWorldPos.xz / _CloudSize * _CurlTile, 0.0, 1.0)).rg;

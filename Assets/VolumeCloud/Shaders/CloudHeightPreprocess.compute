@@ -1,0 +1,32 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+/*
+========================================
+Calculate height lookup table through height-density map.
+========================================
+*/
+sampler2D heightDenstityMap;
+RWTexture2D<float> heightLutResult;
+#define SAMPLE_COUNT 32
+#include "CloudShaderHelper.cginc"
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+	int w, h;
+	heightLutResult.GetDimension(w, h);
+	
+	float coverage, cloudType;
+	coverage = id.x / h;
+	cloudType = id.y / w;
+	
+	for (heightPercent = 1.0f; heightPercent > 0.0f; heightPercent -= 1.0f / SAMPLE_COUNT) {
+		float density = tex2D(heightDensityMap, float2(cloudType, heightPercent));
+		density = ApplyCoverageToDensity(density, coverage);
+		if (density > 0.0f) {
+			break;
+		}
+	}
+
+	heightLutResult[id.xy] = heightPercent;
+}
