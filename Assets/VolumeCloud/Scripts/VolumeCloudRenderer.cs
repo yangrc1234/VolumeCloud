@@ -42,7 +42,8 @@ namespace Yangrc.VolumeCloud {
     [ExecuteInEditMode,RequireComponent(typeof(Camera))]
     [ImageEffectOpaque]
         public class VolumeCloudRenderer : EffectBase {
-        public Shader cloudShader;
+        [SerializeField]
+        private Shader cloudShader;
         public VolumeCloudConfiguration configuration;
         [Range(0, 2)]
         public int downSample = 1;
@@ -53,6 +54,7 @@ namespace Yangrc.VolumeCloud {
         private bool useApSystem;
 
         private Material mat;
+        private Material heightProcessMat;
         private RenderTexture[] fullBuffer;
         private int fullBufferIndex;
         private RenderTexture undersampleBuffer;
@@ -64,9 +66,26 @@ namespace Yangrc.VolumeCloud {
         private float bayerOffsetIndex = 0;
         private bool firstFrame = true;
 
+        [Header("Hi-Height")]
+        [SerializeField]
+        private ComputeShader heightPreprocessShader;
+        [SerializeField]
+        private bool useHierarchicalHeightMap;
+        [SerializeField]
+        private Shader cloudHeightProcessShader;
+        [SerializeField]
+        private Vector2Int hiHeightLevelRange;
+        [SerializeField]
+        private Vector2Int heightLutTableSize = new Vector2Int(512, 512);
+        private RenderTexture heightLutTexture;
+        private RenderTexture hiHeightTexture;
+
         void EnsureMaterial(bool force = false) {
             if (mat == null || force) {
                 mat = new Material(cloudShader);
+            }
+            if (heightProcessMat == null || force){
+                heightProcessMat = new Material(cloudHeightProcessShader);
             }
         }
 
@@ -81,10 +100,49 @@ namespace Yangrc.VolumeCloud {
                 this.undersampleBuffer.Release();
                 this.undersampleBuffer = null;
             }
+            if (hiHeightTexture != null) {
+                hiHeightTexture.Release();
+                hiHeightTexture = null;
+            }
+            if (heightLutTexture != null) {
+                heightLutTexture.Release();
+                heightLutTexture = null;
+            }
         }
 
         private void Start() {
             this.EnsureMaterial(true);
+        }
+
+        private void GenerateHierarchicalHeightMap() {
+
+            if (this.configuration.weatherTex.width != 512 || this.configuration.weatherTex.height != 512) {
+                throw new UnityException("Hierarchical height map mode only supports weather tex of size 512*512!");
+            }
+            
+            if (EnsureRenderTarget(ref heightLutTexture, heightLutTableSize.x, heightLutTableSize.y, RenderTextureFormat.RFloat, FilterMode.Point)) {
+                var kernal = heightPreprocessShader.FindKernel("CalculateHeightLut");
+                heightPreprocessShader.Dispatch(kernal, heightLutTableSize.x, heightLutTableSize.y, 1);
+            }
+
+            EnsureRenderTarget(ref hiHeightTexture, 512, 512, RenderTextureFormat.RFloat, FilterMode.Point);
+
+            RenderTexture previousLevel = null;//Previous level hi-height map.
+            EnsureRenderTarget(ref previousLevel, 512, 512, RenderTextureFormat.RFloat, FilterMode.Point);  //The first level is same size as weather tex.
+            this.heightProcessMat.SetTexture("_WeatherTex", this.configuration.weatherTex);
+            this.heightProcessMat.SetTexture("_HeightLut", this.heightLutTexture);
+            Graphics.Blit(null, previousLevel, this.heightProcessMat, 0);   //The first pass convert weather tex into height map.
+            Graphics.CopyTexture(previousLevel, 0, 0, hiHeightTexture, 0, 0);   //Copy first level into target texture.
+
+            for (int i = 1; i <= Mathf.Min(9, hiHeightLevelRange.y); i++) {
+                RenderTexture currentLevelTexture = null;
+                EnsureRenderTarget(ref currentLevelTexture, 512 >> i, 512 >> i, RenderTextureFormat.RFloat, FilterMode.Point);
+                Graphics.Blit(previousLevel, currentLevelTexture, this.heightProcessMat, 1);
+                Graphics.CopyTexture(currentLevelTexture, 0, 0, hiHeightTexture, 0, i);
+                previousLevel.Release();
+                previousLevel = currentLevelTexture;
+            }
+            previousLevel.Release();
         }
 
         private void OnRenderImage(RenderTexture source, RenderTexture destination) {
@@ -107,6 +165,14 @@ namespace Yangrc.VolumeCloud {
 
             frameIndex = (frameIndex + 1)% 16;
             fullBufferIndex = (fullBufferIndex + 1) % 2;
+
+            if (useHierarchicalHeightMap) {
+                GenerateHierarchicalHeightMap();
+                mat.EnableKeyword("USE_HI_HEIGHT");
+                mat.SetTexture("_HiHeightMap", this.hiHeightTexture);
+            } else {
+                mat.DisableKeyword("USE_HI_HEIGHT");
+            }
 
             /* Some code is from playdead TAA. */
 

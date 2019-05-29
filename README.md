@@ -2,8 +2,8 @@
 ![](./Screenshots/1.png)
 ![](./Screenshots/2.png)
 ![](./Screenshots/3.png)
-Cloud rendering by volume raymarching for Unity3d standard rendering pipeline.  
-The first screenshot is rendered in combination with my atmosphere scattering system(https://github.com/yangrc1234/AtmosphereScatter), it's not very optimized though.  
+**Volume Cloud for Unity3D** is a plugin for rendering cloud using raymarch. For now only compatible with standard rendering pipeline.  
+The first screenshot is rendered in combination with my atmosphere scattering system([Here](https://github.com/yangrc1234/AtmosphereScatter))(The ap system is just my hobby project, not optimized at all. It's included in this repo, use it at your own risk).  
 The second and third screenshot is rendered without any dependency.
 
 # Quick startup
@@ -15,10 +15,10 @@ In this section you'll learn how to setup and adjust the shape and looking of th
 1. Attach VolumeCloudRenderer to your camera. It's advised to put it before any post processing scripts. Once you add the script, the values in Inspector be filled with default values, and you should see effect right away.  
 ![](./Screenshots/setup.png)  
 2. Adjust rendering settings. 
-* The down sample option let cloud rendered into a low-resolution buffer, which greatly saves gpu performance. Setting to 1 means half the resolution, and 2 for quater.
-* Quality option controls the sample count during raymarching. Lower quality only does half samples than high quality. Some noise pattern are visible when using low quality.
-* Allow cloud front object. Turn on this option so that cloud could be rendered in front of object, but this brings a little artifact when object moves around. If you're sure your camera won't go into cloud, uncheck it.
-* Use Ap system. Check this only when AtmosphereScatteringLutManager script in scene. (It will have impact on performance, since the atmosphere scattering system is not very optimized. I only used it for the screenshot.)  
+* **DownSample** option let cloud rendered into a low-resolution buffer, which greatly saves gpu performance. Setting to 1 means half the resolution, and 2 for quater.
+* **Quality** option controls the sample count during raymarching. Lower quality only does half samples than high quality. Some noise pattern are visible when using low quality.
+* **Allow cloud front object**. Turn on this option so that cloud could be rendered in front of object, but this brings a little artifact when object moves around. If you're sure your camera won't go into cloud, uncheck it.
+* **Use Ap system**. Check this only when AtmosphereScatteringLutManager script in scene. (It will have impact on performance, since the atmosphere scattering system is not very optimized. I only used it for the screenshot.)  
 The script has a config parameter. Create a new config by rightclick - Create - Volume Cloud Configuration. By default there's a config file under Assets\VolumeCloud\Example.  
 There're many paramters you can tweak in the config file. Most of the params are intuitive enough to play with.
 3. Adjust cloud properties in the config file. See below.
@@ -62,6 +62,14 @@ Atmosphere saturate distance indicates how far will the cloud be invisible due t
 ## Wind  
 Wind effect simulates the cloud moving by rotating the noise texture. So the overall cloud position won't be changed.  
 
+# Misc
+
+## Benchmark
+Incoming.
+
+## Known issues
+Object edge glitch when allow cloud front is checked and downsampled, due to edge-preserving upsample is not implemented yet.
+
 ## TODO
 - [x] Add aerial perspective things.  
 - [ ] Extend view distance above cloud.
@@ -78,11 +86,11 @@ Wind effect simulates the cloud moving by rotating the noise texture. So the ove
 
 ## History.
 18/4/15 - Fixed "band" glitch.  
-18/7/7 - Added low-resolution rendering.  
-18/10/28 - Added Height-Density map from [4]
-19/3/2 - Added depth estimation stuff, reduced blur problem when rotating camera.
-19/3/4 - Rewrite lighting code, using methods from [4], it should be very "physically based" now.
-19/5/18 - Rewrite raymarch and TAA. The 4x4 pattern is obsoleted. A full-screen raymarch with much lower sample count and temporal reprojection is used now.
+18/7/7 - Added low-resolution rendering.    
+18/10/28 - Added Height-Density map from [4]  
+19/3/2 - Added depth estimation stuff, reduced blur problem when rotating camera.  
+19/3/4 - Rewrite lighting code, using methods from [4], it should be very "physically based" now.  
+19/5/18 - Rewrite raymarch and TAA. The 4x4 pattern is obsoleted. A full-screen raymarch with much lower sample count and temporal reprojection is used now.  
 
 # Implementation Details  
 This section describes some details about implementation. It's for developers who are also working on volume cloud. So some common topics won't be covered here. If you want to see the full pipeline, check the talks/articles in references.
@@ -93,7 +101,7 @@ In the first version I implemented I chose to use the 4x4 way, but now I chose t
 
 ## Passes  
 Three passes are required in my implementation.  
-First pass renders an undersampled result for current frame. Second frame uses the result of first pass and history buffer to combine final result for this frame. Here the buffer stores sun intensity, estimated cloud depth and transmittance.  
+First pass renders an undersampled result for current frame. Second pass uses the result of first pass and history buffer to combine final result for this frame. Here the buffer stores sun intensity, estimated cloud depth and transmittance.  
 Third pass does lighting using result of second pass, then blend with final image.  
 
 ## Raymarch Offset 
