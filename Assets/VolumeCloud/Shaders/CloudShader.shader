@@ -72,7 +72,8 @@ Shader "Yangrc/CloudShader"
 			#pragma multi_compile LOW_QUALITY MEDIUM_QUALITY HIGH_QUALITY	//High quality uses more samples.
 			#pragma vertex vert
 			#pragma fragment frag
-			#include "./CloudShaderHelper.cginc"
+			//#include "./CloudShaderHelper.cginc"
+			#include "./CloudNormalRaymarch.cginc"
 			#include "UnityCG.cginc"
 
 #if defined(HIGH_QUALITY)

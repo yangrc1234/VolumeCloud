@@ -283,6 +283,15 @@ MonoBehaviour:
   quality: 0
   allowCloudFrontObject: 1
   useApSystem: 0
+  heightPreprocessShader: {fileID: 7200000, guid: 40276bd53f35a694e8d4e025ca310775,
+    type: 3}
+  useHierarchicalHeightMap: 1
+  cloudHeightProcessShader: {fileID: 4800000, guid: b80bf04ca56d3d642a6b925cff3f5ddf,
+    type: 3}
+  hiHeightLevelRange: {x: 0, y: 9}
+  heightLutTextureSize: {x: 512, y: 512}
+  heightLutTexture: {fileID: 0}
+  hiHeightTexture: {fileID: 0}
 --- !u!114 &1748146235
 MonoBehaviour:
   m_ObjectHideFlags: 0

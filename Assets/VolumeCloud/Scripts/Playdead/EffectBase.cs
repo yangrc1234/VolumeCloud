@@ -61,18 +61,22 @@ public abstract class EffectBase : MonoBehaviour
         }
     }
 
-    public bool EnsureRenderTarget(ref RenderTexture rt, int width, int height, RenderTextureFormat format, FilterMode filterMode, int depthBits = 0, int antiAliasing = 1)
+    public bool EnsureRenderTarget(ref RenderTexture rt, int width, int height, RenderTextureFormat format, FilterMode filterMode, bool randomWrite = false, bool useMipmap = false, int depthBits = 0, int antiAliasing = 1)
     {
-        if (rt != null && (rt.width != width || rt.height != height || rt.format != format || rt.filterMode != filterMode || rt.antiAliasing != antiAliasing))
+        if (rt != null && (rt.width != width || rt.height != height || rt.format != format || rt.filterMode != filterMode || rt.enableRandomWrite != randomWrite || rt.antiAliasing != antiAliasing || rt.useMipMap != useMipmap))
         {
-            RenderTexture.ReleaseTemporary(rt);
+            rt.Release();
             rt = null;
         }
         if (rt == null)
         {
-            rt = RenderTexture.GetTemporary(width, height, depthBits, format, RenderTextureReadWrite.Default, antiAliasing);
+            rt = new RenderTexture(width, height, depthBits, format, RenderTextureReadWrite.Default);
+            rt.antiAliasing = antiAliasing;
+            rt.useMipMap = useMipmap;
             rt.filterMode = filterMode;
+            rt.enableRandomWrite = randomWrite;
             rt.wrapMode = TextureWrapMode.Clamp;
+            rt.Create();
             return true;// new target
         }
         return false;// same target

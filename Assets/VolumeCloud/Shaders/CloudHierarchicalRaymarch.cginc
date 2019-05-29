@@ -4,8 +4,8 @@ sampler2D _HiHeightMap;    //Includes hierarchical height map. Every mip level s
 uint HeightMapSize;
 float HeightMapWorldSize;
 
-static const HI_HEIGHT_LOWEST_LEVEL = 0;
-static const HI_HEIGHT_HIGHEST_LEVEL = 9;
+uint _HiHeightMaxLevel;
+uint _HiHeightMinLevel;
 
 float2 GetCellUV(float2 pos){
     return (pos / HeightMapWorldSize) + 0.5;
@@ -43,32 +43,32 @@ float IntersectWithCellBoundary(float3 origin, float3 v, uint zlevel, uint2 cell
 }
 
 float HierarchicalRaymarch(float3 startpos, float3 dir, float maxSampleDistance, int max_sample_count, float raymarchOffset, out float intensity, out float depth) {
-    float sampleStartT, sampleEndT;
-	if (!resolve_ray_start_end(startPos, dir, sampleStartT, sampleEndT)) {
+    float sampleStart, sampleEnd;
+	if (!resolve_ray_start_end(startPos, dir, sampleStart, sampleEnd)) {
 		intensity = 0.0;
 		depth = 1e6;
 		return 0;
 	}
 
-    float3 sampleStart = startPos + dir * sampleStartT;
+    float3 sampleStart = startPos + dir * sampleStart;
 	if (sampleStart.y < -200) {	//Below horizon.
 		intensity = 0.0;
 	    depth = 1e6;
 		return 0.0;
 	}
 
-    int currentZLevel = 0;
-    float currentStep = 0;
-
-	float sample_step = min((sampleEndT - sampleStartT) / max_sample_count, 1000);
+	float sample_step = min((sampleEnd - sampleStart) / max_sample_count, 1000);
     float3 v = sample_step * dir;
     float stepSize = length(v);
-    float stepEnd = min(maxSampleDistance, sampleEndT) / stepSize;
+    float stepEnd = min(maxSampleDistance, sampleEnd) / stepSize;
+    
+	int currentZLevel = 0;
+    float currentStep = sampleStart / stepSize;
     
 	RaymarchStatus result;
 	InitRaymarchStatus(result);
 
-    while(currentZLevel < HI_HEIGHT_HIGHEST_LEVEL && currentStep < stepEnd) {
+    while(currentStep < stepEnd) {
         float3 raypos = startpos + currentStep * v;
         float2 uv = GetCellUV(raypos);
         float height = tex2Dlod(_HiHeightMap, float4(uv, 0.0, currentZLevel));
@@ -94,8 +94,8 @@ float HierarchicalRaymarch(float3 startpos, float3 dir, float maxSampleDistance,
         if (intersected) { //Current raypos is inside cloud of current level.
             //Move raypos to just beyond rayhitStepSize
             currentStep += ceil(rayhitStepSize);            
-            if (currentZLevel == HI_HEIGHT_LOWEST_LEVEL) { //We can do raymarch now.
-		        IntegrateRaymarch(rayPos, stepSize, result);
+            if (currentZLevel == _HiHeightMinLevel) { //We can do raymarch now.
+				IntegrateRaymarch(startPos, rayPos, dir, stepSize, result);
                 currentStep += 1.0f;
             } else { 
                 currentZLevel -= 1;
@@ -103,13 +103,13 @@ float HierarchicalRaymarch(float3 startpos, float3 dir, float maxSampleDistance,
         } else {    //Reached bound of current cell.
             rayhitStepSize = IntersectWithCellBoundary(startpos, v, currentZLevel, oldCellIndex);
             currentStep += ceil(rayhitStepSize + 0.00001 /*Make sure we move into another cell*/);
-            currentZLevel += 1;
+            currentZLevel = min(currentZLevel + 1, _HiHeightMaxLevel);
         }
     }
     
 	depth = result.depth / result.depthweightsum;
 	if (depth == 0.0f) {
-		depth = sampleEndT;
+		depth = sampleEnd;
 	}
 	intensity = result.intensity;
 	return (1.0f - result.intTransmittance);	

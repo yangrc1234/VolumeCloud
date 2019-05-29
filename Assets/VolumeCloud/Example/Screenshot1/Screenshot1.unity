@@ -26,7 +26,7 @@ RenderSettings:
   m_AmbientIntensity: 1
   m_AmbientMode: 0
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
-  m_SkyboxMaterial: {fileID: 1535978979}
+  m_SkyboxMaterial: {fileID: 944154085}
   m_HaloStrength: 0.5
   m_FlareStrength: 1
   m_FlareFadeSpeed: 3
@@ -171,13 +171,13 @@ Transform:
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 49040650}
-  m_LocalRotation: {x: -0.99098814, y: -0.10131571, z: -0.0869894, w: -0.010511795}
+  m_LocalRotation: {x: -0.87370944, y: -0.13006496, z: -0.030251881, w: -0.46776047}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 1
-  m_LocalEulerAnglesHint: {x: 539.816, y: -730.052, z: -11.690979}
+  m_LocalEulerAnglesHint: {x: 485.952, y: -737.295, z: -25.804993}
 --- !u!1 &636899334
 GameObject:
   m_ObjectHideFlags: 0
@@ -205,7 +205,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e16dd2ddbdfa7ea4f87a3cfb032ffd0f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  progressiveUpdate: 1
+  progressiveUpdate: 0
   computeShader: {fileID: 7200000, guid: 2d4396a54b390d742b84d4bb4a122e54, type: 3}
   outputDebug: 0
   lutConfig:
@@ -227,7 +227,7 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!21 &1535978979
+--- !u!21 &944154085
 Material:
   serializedVersion: 6
   m_ObjectHideFlags: 0
@@ -353,6 +353,14 @@ MonoBehaviour:
   quality: 0
   allowCloudFrontObject: 0
   useApSystem: 1
+  heightPreprocessShader: {fileID: 0}
+  useHierarchicalHeightMap: 0
+  cloudHeightProcessShader: {fileID: 4800000, guid: b80bf04ca56d3d642a6b925cff3f5ddf,
+    type: 3}
+  hiHeightLevelRange: {x: 0, y: 9}
+  heightLutTextureSize: {x: 512, y: 512}
+  heightLutTexture: {fileID: 0}
+  hiHeightTexture: {fileID: 0}
 --- !u!114 &1748146235
 MonoBehaviour:
   m_ObjectHideFlags: 0

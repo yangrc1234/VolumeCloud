@@ -47,7 +47,7 @@ Shader "Yangrc/HeightMapDownsample"
 		float frag (Interpolator i) : SV_Target
 		{
 			float3 weatherData = tex2D(_WeatherTex, i.uv);
-			float height = tex2D(_HeightLut, float2(weatherData.xz))	/*Index using coverage(x) and heightpercent(z)*/
+			float height = tex2D(_HeightLut, float2(weatherData.xz));	/*Index using coverage(x) and heightpercent(z)*/
 			return height;
 		}
 
@@ -60,7 +60,8 @@ Shader "Yangrc/HeightMapDownsample"
 		#pragma vertex vert
 		#pragma fragment frag
 
-		sampler2D _HeightLut;
+		sampler2D _MainTex;
+		float3 _MainTex_TexelSize;
 
 		struct appdata
 		{
@@ -83,11 +84,14 @@ Shader "Yangrc/HeightMapDownsample"
 
 		float frag (Interpolator i) : SV_Target
 		{
-			float3 weatherData = tex2D(_WeatherTex, i.uv);
-			float height = tex2D(_HeightLut, float2(weatherData.xz))	/*Index using coverage(x) and heightpercent(z)*/
-			return height;
+			float2 offset = _MainTex_TexelSize.xy / 2.0f;
+			float s1 = tex2D(_MainTex, i.uv - offset);
+			float s2 = tex2D(_MainTex, i.uv + offset);
+			offset.y *= -1.0f;
+			float s3 = tex2D(_MainTex, i.uv - offset);
+			float s4 = tex2D(_MainTex, i.uv + offset);
+			return max(s1, max(s2, max(s3, s4)));
 		}
-
 		ENDCG
 		}
 	}

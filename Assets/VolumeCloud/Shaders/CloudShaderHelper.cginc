@@ -108,7 +108,7 @@ float HenryGreenstein(float g, float cosTheta) {
 
 float ApplyCoverageToDensity(float sampleResult, float coverage){
 	sampleResult = RemapClamped(sampleResult, 1.0 - coverage, 1.0, 0.0, 1.0);
-	sampleResult *= cloudCoverage.x;
+	sampleResult *= coverage;
 	return sampleResult;
 }
 
@@ -199,10 +199,10 @@ float SampleOpticsDistanceToSun(float3 worldPos) {
 float SampleEnergy(float3 worldPos, float3 viewDir) {
 	float opticsDistance = SampleOpticsDistanceToSun(worldPos);
 	float result = 0.0f;
+	float cosTheta = dot(viewDir, _WorldSpaceLightPos0);
 	[unroll]
 	for (int octaveIndex = 0; octaveIndex < 2; octaveIndex++) {	//Multi scattering approximation from Frostbite.
 		float transmittance = exp(-_ExtinctionCoefficient * pow(_MultiScatteringB, octaveIndex) * opticsDistance);
-		float cosTheta = dot(viewDir, _WorldSpaceLightPos0);
 		float ecMult = pow(_MultiScatteringC, octaveIndex);
 		float phase = lerp(HenryGreenstein(.1f * ecMult, cosTheta), HenryGreenstein((0.99 - _SilverSpread) * ecMult, cosTheta), 0.5f);
 		result += phase * transmittance * _ScatteringCoefficient * pow(_MultiScatteringA, octaveIndex);
@@ -225,7 +225,7 @@ bool ray_trace_sphere(float3 center, float3 rd, float3 offset, float radius, out
 	return false;
 }
 
-bool resolve_ray_start_end(float3 ws_origin, float3 ws_ray, out float startt, out float endt) {
+bool resolve_ray_start_end(float3 ws_origin, float3 ws_ray, out float start, out float end) {
 	//case includes on ground, inside atm, above atm.
 	float ot1, ot2, it1, it2;
 	bool outIntersected = ray_trace_sphere(ws_origin, ws_ray, EARTH_CENTER, EARTH_RADIUS + CLOUDS_END, ot1, ot2);
@@ -265,7 +265,7 @@ struct RaymarchStatus {
 	float depth;
 	float depthweightsum;
 	float intTransmittance;
-}
+};
 
 void InitRaymarchStatus(inout RaymarchStatus result){
 	result.intTransmittance = 1.0f;
@@ -274,7 +274,7 @@ void InitRaymarchStatus(inout RaymarchStatus result){
 	result.depth = 0.0f;
 }
 
-void IntegrateRaymarch(float3 rayPos, float stepsize, inout RaymarchStatus result){
+void IntegrateRaymarch(float3 startPos, float3 rayPos, float3 viewdir, float stepsize, inout RaymarchStatus result){
 	float wetness;
 	float density = SampleDensity(rayPos, 0, false, wetness);
 	if (density <= 0.0f)
@@ -282,9 +282,9 @@ void IntegrateRaymarch(float3 rayPos, float stepsize, inout RaymarchStatus resul
 	float extinction = _ExtinctionCoefficient * density;
 
 	float clampedExtinction = max(extinction, 1e-7);
-	float transmittance = exp(-extinction * sample_step);
+	float transmittance = exp(-extinction * stepsize);
 			
-	float luminance = SampleEnergy(rayPos, dir) * lerp(1.0f, 0.3f, wetness);
+	float luminance = SampleEnergy(rayPos, viewdir) * lerp(1.0f, 0.3f, wetness);
 	float integScatt = (luminance - luminance * transmittance) / clampedExtinction;
 	float depthWeight = result.intTransmittance;		//Is it a better idead to use (1-transmittance) * intTransmittance as depth weight?
 
