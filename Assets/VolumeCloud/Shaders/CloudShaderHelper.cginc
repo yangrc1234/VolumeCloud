@@ -220,7 +220,7 @@ bool ray_trace_sphere(float3 center, float3 rd, float3 offset, float radius, out
 	return false;
 }
 
-bool resolve_ray_start_end(float3 ws_origin, float3 ws_ray, out float3 start, out float3 end) {
+bool resolve_ray_start_end(float3 ws_origin, float3 ws_ray, out float startt, out float endt) {
 	//case includes on ground, inside atm, above atm.
 	float ot1, ot2, it1, it2;
 	bool outIntersected = ray_trace_sphere(ws_origin, ws_ray, EARTH_CENTER, EARTH_RADIUS + CLOUDS_END, ot1, ot2);
@@ -232,86 +232,59 @@ bool resolve_ray_start_end(float3 ws_origin, float3 ws_ray, out float3 start, ou
 	if (inIntersected) {
 		if (it1 < 0) {
 			//we're on ground.
-			start = ws_origin + max(it2, 0) * ws_ray;
-			end = ws_origin + ot2 * ws_ray;
+			start = max(it2, 0);
+			end = ot2;
 		}
 		else {
 			//we're inside atm, or above atm.
-			end = ws_origin + it1 * ws_ray;
+			end = it1;
 			if (ot1 < 0) {
 				//inside atm.
-				start = ws_origin;
+				start = 0.0f;
 			}
 			else {
 				//above atm.
-				start = ws_origin + ot1 * ws_ray;
+				start = ot1;
 			}
 		}
 	}
 	else {
-		end = ws_origin + ot2 * ws_ray;
-		start = ws_origin + max(ot1, 0) * ws_ray;
+		end = ot2;
+		start = max(ot1, 0);
 	}
 	return true;
 }
- 
-float GetDensity(float3 startPos, float3 dir, float maxSampleDistance, int sample_count, float raymarchOffset, out float intensity,out float depth) {
-	float3 sampleStart, sampleEnd;
 
-	if (!resolve_ray_start_end(startPos, dir, sampleStart, sampleEnd)) {
-		intensity = 0.0;
-		depth = 1e6;
-		return 0;
-	}
+struct RaymarchStatus {
+	float intensity;
+	float depth;
+	float depthweightsum;
+	float intTransmittance;
+}
 
-	float sample_step = min(length(sampleEnd - sampleStart) / sample_count, 1000);
-	depth = 0.0f;
+void InitRaymarchStatus(inout RaymarchStatus result){
+	result.intTransmittance = 1.0f;
+	result.intensity = 0.0f;
+	result.depthweightsum = 0.00001f;
+	result.depth = 0.0f;
+}
 
-	if (sampleStart.y < -200) {	//Below horizon.
-		intensity = 0.0;
-		return 0.0;
-	}
+void IntegrateRaymarch(float3 rayPos, float stepsize, inout RaymarchStatus result){
+	float wetness;
+	float density = SampleDensity(rayPos, 0, false, wetness);
+	if (density <= 0.0f)
+		return;
+	float extinction = _ExtinctionCoefficient * density;
 
-	float startPosToSampleStart = length(sampleStart - startPos);
+	float clampedExtinction = max(extinction, 1e-7);
+	float transmittance = exp(-extinction * sample_step);
+			
+	float luminance = SampleEnergy(rayPos, dir) * lerp(1.0f, 0.3f, wetness);
+	float integScatt = (luminance - luminance * transmittance) / clampedExtinction;
+	float depthWeight = result.intTransmittance;		//Is it a better idead to use (1-transmittance) * intTransmittance as depth weight?
 
-	float intTransmittance = 1.0f;
-	float alpha = 0;
-	intensity = 0;
-	float depthweightsum = 0.00001f;
-	float raymarchDistance = raymarchOffset * sample_step;
-
-	[loop]
-	for (int j = 0; j < sample_count; j++, raymarchDistance += sample_step) {
-		float wetness;
-		float3 rayPos = sampleStart + dir * raymarchDistance;
-		if (raymarchDistance + startPosToSampleStart > maxSampleDistance) {
-			break;
-		}
-
-		float density = SampleDensity(rayPos, 0, false, wetness);
-		if (density <= 0.0f)
-			continue;
-		float extinction = _ExtinctionCoefficient * density;
-
-		float clampedExtinction = max(extinction, 1e-7);
-		float transmittance = exp(-extinction * sample_step);
-				
-		float luminance = SampleEnergy(rayPos, dir) * lerp(1.0f, 0.3f, wetness);
-		float integScatt = (luminance - luminance * transmittance) / clampedExtinction;
-
-		intensity += intTransmittance * integScatt;
-
-		float depthWeight = intTransmittance;		//Is it a better idead to use (1-transmittance) * intTransmittance as depth weight?
-		depth += depthWeight * length(rayPos - startPos);
-		depthweightsum += depthWeight;
-
-		intTransmittance *= transmittance;
-	}
-
-	depth /= depthweightsum;
-	if (depth == 0.0f) {
-		depth = length(sampleEnd - startPos);
-	}
-
-	return (1.0f - intTransmittance);	
+	result.intensity += result.intTransmittance * integScatt;
+	result.depth += depthWeight * length(rayPos - startPos);
+	result.depthweightsum += depthWeight;
+	result.intTransmittance *= transmittance;
 }
