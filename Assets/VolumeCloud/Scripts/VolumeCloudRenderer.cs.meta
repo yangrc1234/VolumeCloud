@@ -4,8 +4,14 @@ MonoImporter:
   externalObjects: {}
   serializedVersion: 2
   defaultReferences:
-  - configuration: {fileID: 11400000, guid: a15886e93ac3e7847861da392782f13d, type: 2}
   - cloudShader: {fileID: 4800000, guid: 84e97169589c5e94e8521fe4deb2e3f8, type: 3}
+  - configuration: {fileID: 11400000, guid: a15886e93ac3e7847861da392782f13d, type: 2}
+  - heightPreprocessShader: {fileID: 7200000, guid: 40276bd53f35a694e8d4e025ca310775,
+      type: 3}
+  - cloudHeightProcessShader: {fileID: 4800000, guid: b80bf04ca56d3d642a6b925cff3f5ddf,
+      type: 3}
+  - heightLutTexture: {instanceID: 0}
+  - hiHeightTexture: {instanceID: 0}
   executionOrder: 0
   icon: {instanceID: 0}
   userData: 

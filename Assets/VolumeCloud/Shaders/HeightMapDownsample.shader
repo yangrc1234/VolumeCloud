@@ -5,7 +5,7 @@ Shader "Yangrc/HeightMapDownsample"
 {
 	Properties
 	{
-		
+		_MainTex("Main Tex", 2D) = "white"
 	}
 
 	SubShader

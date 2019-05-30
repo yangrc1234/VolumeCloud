@@ -1,40 +1,35 @@
 #include "CloudShaderHelper.cginc"
 
 sampler2D _HiHeightMap;    //Includes hierarchical height map. Every mip level stores max height of sub pixels.
-uint HeightMapSize;
-float HeightMapWorldSize;
+uint _HeightMapSize;
 
 uint _HiHeightMaxLevel;
 uint _HiHeightMinLevel;
 
-float2 GetCellUV(float2 pos){
-    return (pos / HeightMapWorldSize) + 0.5;
+int2 GetCellIndex(float2 pos, uint level) {
+	float2 uv = pos / _WeatherTexSize;
+    uint currentLevelSize = _HeightMapSize >> level;
+	return (int2)floor(uv * (float)currentLevelSize);
 }
 
-uint2 GetCellIndex(float2 pos, uint level) {
-    float2 uv = GetCellUV(pos);
-    uint currentLevelSize = HeightMapSize << level;
-    return (uint2)(uv * (float)currentLevelSize)
-}
-
-float IntersectWithHeightPlane(float3 origin, float3 v, float height, float t) {
+float IntersectWithHeightPlane(float3 origin, float3 v, float height) {
     //As suggested by https://docs.unity3d.com/Manual/SL-DataTypesAndPrecision.html and IEEE754
     //On most pc gpus, divide by zero gives a INF result.
     return (height - origin.y) / v.y;
 }
 
-float IntersectWithCellBoundary(float3 origin, float3 v, uint zlevel, uint2 cellIndex) {
+float IntersectWithCellBoundary(float3 origin, float3 v, uint zlevel, int2 cellIndex) {
     //Origin is assumed to be inside cell of cellIndex
 
-    uint currentLevelSize = HeightMapSize << level;
-    float2 cellSpacing = HeightMapWorldSize / currentLevelSize;
+    uint currentLevelSize = _HeightMapSize >> zlevel;
+    float cellSpacing = _WeatherTexSize / currentLevelSize;
     
     //x-axis plane.
-    float2 xAxisPlanes = (cellIndex.x + float2(0.5, -0.5)) * cellSpacing;   //Same as float2((cellIndex.x + 0.5) * cellSpacing), (cellIndex.x - 0.5) * cellSpacing))
+    float2 xAxisPlanes = (cellIndex.x + float2(1.0, 0.0)) * cellSpacing;   //Same as float2((cellIndex.x + 0.5) * cellSpacing), (cellIndex.x - 0.5) * cellSpacing))
     float2 xAxisIntersectT = (xAxisPlanes - origin.x) / v.x;
 
-    //y-axis planes.
-    float2 zAxisPlanes = (cellIndex.y + float2(0.5, -0.5)) * cellSpacing;
+    //z-axis planes.
+    float2 zAxisPlanes = (cellIndex.y + float2(0.0, 1.0)) * cellSpacing;
     float2 zAxisIntersectT = (zAxisPlanes - origin.z) / v.z;
 
     //TODO: Above calculations could be combined into one float4, will that help?
@@ -42,16 +37,16 @@ float IntersectWithCellBoundary(float3 origin, float3 v, uint zlevel, uint2 cell
     return min(max(xAxisIntersectT.x, xAxisIntersectT.y), max(zAxisIntersectT.x, zAxisIntersectT.y));
 }
 
-float HierarchicalRaymarch(float3 startpos, float3 dir, float maxSampleDistance, int max_sample_count, float raymarchOffset, out float intensity, out float depth) {
+float HierarchicalRaymarch(float3 startPos, float3 dir, float maxSampleDistance, int max_sample_count, float raymarchOffset, out float intensity, out float depth, out int iteration_count, inout float4 debug) {
     float sampleStart, sampleEnd;
+	debug = 0.0f;
 	if (!resolve_ray_start_end(startPos, dir, sampleStart, sampleEnd)) {
 		intensity = 0.0;
 		depth = 1e6;
 		return 0;
 	}
-
-    float3 sampleStart = startPos + dir * sampleStart;
-	if (sampleStart.y < -200) {	//Below horizon.
+    float3 sampleStartPos = startPos + dir * sampleStart;
+	if (sampleStartPos.y < -200) {	//Below horizon.
 		intensity = 0.0;
 	    depth = 1e6;
 		return 0.0;
@@ -60,19 +55,23 @@ float HierarchicalRaymarch(float3 startpos, float3 dir, float maxSampleDistance,
 	float sample_step = min((sampleEnd - sampleStart) / max_sample_count, 1000);
     float3 v = sample_step * dir;
     float stepSize = length(v);
-    float stepEnd = min(maxSampleDistance, sampleEnd) / stepSize;
-    
-	int currentZLevel = 0;
-    float currentStep = sampleStart / stepSize;
+    float maxStepCount = min(maxSampleDistance, sampleEnd) / stepSize;
+
+	uint currentZLevel = 2;
+    float currentStep = sampleStart / stepSize + raymarchOffset;
     
 	RaymarchStatus result;
 	InitRaymarchStatus(result);
 
-    while(currentStep < stepEnd) {
-        float3 raypos = startpos + currentStep * v;
-        float2 uv = GetCellUV(raypos);
-        float height = tex2Dlod(_HiHeightMap, float4(uv, 0.0, currentZLevel));
-        uint2 oldCellIndex = GetCellIndex(raypos.xz, currentZLevel);
+	iteration_count = 0;
+	bool debugflag = false;
+	int debugcount = 0;
+	[loop]
+    while(currentStep < maxStepCount && iteration_count++ < 64) {
+        float3 raypos = startPos + currentStep * v;
+        float2 uv = (raypos.xz / _WeatherTexSize) + 0.5;
+        float height = tex2Dlod(_HiHeightMap, float4(uv, 0.0, currentZLevel)) * THICKNESS + CLOUDS_START;
+        int2 oldCellIndex = GetCellIndex(raypos.xz, currentZLevel);
 
         float rayhitStepSize;
         bool intersected = false;
@@ -80,11 +79,11 @@ float HierarchicalRaymarch(float3 startpos, float3 dir, float maxSampleDistance,
             rayhitStepSize = 0.0f;
             intersected = true;
         } else {
-            rayhitStepSize = IntersectWithHeightPlane(raypos, v, height) 
+			rayhitStepSize = IntersectWithHeightPlane(raypos, v, height);
             if (rayhitStepSize > 0.0f) {
                 //tmpRay is the intersection point of the height plane and ray.
                 float3 tmpRay = raypos + v * rayhitStepSize;
-                uint2 newCellIndex = GetCellIndex(tmpRay.xz, currentZLevel);
+                int2 newCellIndex = GetCellIndex(tmpRay.xz, currentZLevel);
                 intersected = newCellIndex == oldCellIndex;
             } else {
                 intersected = false;
@@ -95,14 +94,17 @@ float HierarchicalRaymarch(float3 startpos, float3 dir, float maxSampleDistance,
             //Move raypos to just beyond rayhitStepSize
             currentStep += ceil(rayhitStepSize);            
             if (currentZLevel == _HiHeightMinLevel) { //We can do raymarch now.
-				IntegrateRaymarch(startPos, rayPos, dir, stepSize, result);
+				IntegrateRaymarch(startPos, raypos, dir, stepSize, result);
+				if (result.intTransmittance < 0.005f) {	//Save gpu, save the world.
+					break;
+				}
                 currentStep += 1.0f;
-            } else { 
+            } else {
                 currentZLevel -= 1;
             }
         } else {    //Reached bound of current cell.
-            rayhitStepSize = IntersectWithCellBoundary(startpos, v, currentZLevel, oldCellIndex);
-            currentStep += ceil(rayhitStepSize + 0.00001 /*Make sure we move into another cell*/);
+            rayhitStepSize = IntersectWithCellBoundary(raypos, v, currentZLevel, oldCellIndex);
+            currentStep += ceil(rayhitStepSize + 0.0001 /*Make sure we move into another cell*/);
             currentZLevel = min(currentZLevel + 1, _HiHeightMaxLevel);
         }
     }
@@ -112,5 +114,9 @@ float HierarchicalRaymarch(float3 startpos, float3 dir, float maxSampleDistance,
 		depth = sampleEnd;
 	}
 	intensity = result.intensity;
+	//debug = (iteration_count / 32.0f);
+	//debug = debugflag ? 1.0f : 0.0f;
+	//debug = debugcount / 100.0f;
+	//debug = currentStep / maxStepCount;
 	return (1.0f - result.intTransmittance);	
 }

@@ -139,7 +139,7 @@ float SampleDensity(float3 worldPos,int lod, bool cheap, out float wetness) {
 	sampleResult = RemapClamped(low_freq_fBm, -0.5 * sampleResult, 1.0, 0.0, 1.0);
 
 	//Sample Height-Density map.
-	float2 densityAndErodeness = tex2D(_HeightDensity, float2(cloudType, heightPercent)).rg;
+	float2 densityAndErodeness = tex2Dlod(_HeightDensity, float4(cloudType, heightPercent, 0.0, 0.0)).rg;
 
 	sampleResult *= densityAndErodeness.x;
 	//Clip the result using coverage map.

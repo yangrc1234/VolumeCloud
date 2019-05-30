@@ -79,6 +79,7 @@ namespace Yangrc.VolumeCloud {
         private Vector2Int heightLutTextureSize = new Vector2Int(512, 512);
         public RenderTexture heightLutTexture;
         public RenderTexture hiHeightTexture;
+        public RenderTexture[] hiHeightTempTextures;
 
         void EnsureMaterial(bool force = false) {
             if (mat == null || force) {
@@ -130,25 +131,25 @@ namespace Yangrc.VolumeCloud {
             heightPreprocessShader.SetTexture(kernal, "heightLutResult", this.heightLutTexture);
             heightPreprocessShader.Dispatch(kernal, heightLutTextureSize.x, heightLutTextureSize.y, 1);
 
-            EnsureRenderTarget(ref hiHeightTexture, 512, 512, RenderTextureFormat.RFloat, FilterMode.Point, randomWrite: true, useMipmap:true);
+            EnsureRenderTarget(ref hiHeightTexture, 512, 512, RenderTextureFormat.RFloat, FilterMode.Point, wrapMode: TextureWrapMode.Repeat, randomWrite: true, useMipmap:true);
 
-            RenderTexture previousLevel = null;//Previous level hi-height map.
-            EnsureRenderTarget(ref previousLevel, 512, 512, RenderTextureFormat.RFloat, FilterMode.Point, randomWrite: true);  //The first level is same size as weather tex.
+            EnsureArray(ref hiHeightTempTextures, 10);
+            for (int i = 0; i <= 9; i++) {
+                EnsureRenderTarget(ref hiHeightTempTextures[i], 512 >> i, 512 >> i, RenderTextureFormat.RFloat, FilterMode.Point);
+            }
+
+            //RenderTexture previousLevel = null;//Previous level hi-height map.
+            //EnsureRenderTarget(ref previousLevel, 512, 512, RenderTextureFormat.RFloat, FilterMode.Point, randomWrite: true);  //The first level is same size as weather tex.
             this.heightDownsampleMat.SetTexture("_WeatherTex", this.configuration.weatherTex);
             this.heightDownsampleMat.SetTexture("_HeightLut", this.heightLutTexture);
-            Graphics.Blit(null, previousLevel, this.heightDownsampleMat, 0);   //The first pass convert weather tex into height map.
-            Graphics.CopyTexture(previousLevel, 0, 0, hiHeightTexture, 0, 0);   //Copy first level into target texture.
+            Graphics.Blit(null, hiHeightTempTextures[0], this.heightDownsampleMat, 0);   //The first pass convert weather tex into height map.
+            Graphics.CopyTexture(hiHeightTempTextures[0], 0, 0, hiHeightTexture, 0, 0);   //Copy first level into target texture.
 
             for (int i = 1; i <= Mathf.Min(9, hiHeightLevelRange.y); i++) {
-                RenderTexture currentLevelTexture = null;
-                EnsureRenderTarget(ref currentLevelTexture, 512 >> i, 512 >> i, RenderTextureFormat.RFloat, FilterMode.Point, randomWrite: true);
-                Graphics.Blit(previousLevel, currentLevelTexture, this.heightDownsampleMat, 1);
-                Graphics.CopyTexture(currentLevelTexture, 0, 0, hiHeightTexture, 0, i);
-                previousLevel.Release();
-                previousLevel = currentLevelTexture;
+                Graphics.Blit(hiHeightTempTextures[i - 1], hiHeightTempTextures[i], this.heightDownsampleMat, 1);
+                Graphics.CopyTexture(hiHeightTempTextures[i], 0, 0, hiHeightTexture, 0, i);
             }
             RenderTexture.active = defaultTarget;
-            previousLevel.Release();
         }
 
         private void OnRenderImage(RenderTexture source, RenderTexture destination) {
@@ -176,6 +177,7 @@ namespace Yangrc.VolumeCloud {
                 GenerateHierarchicalHeightMap();
                 mat.EnableKeyword("USE_HI_HEIGHT");
                 mat.SetTexture("_HiHeightMap", this.hiHeightTexture);
+                mat.SetInt("_HeightMapSize", this.hiHeightTexture.width);
                 mat.SetInt("_HiHeightMinLevel", this.hiHeightLevelRange.x);
                 mat.SetInt("_HiHeightMaxLevel", this.hiHeightLevelRange.y);
             } else {

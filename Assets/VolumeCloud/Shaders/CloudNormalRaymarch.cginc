@@ -30,6 +30,9 @@ float GetDensity(float3 startPos, float3 dir, float maxSampleDistance, int sampl
         }
 		float3 rayPos = startPos + dir * raymarchDistance;
 		IntegrateRaymarch(startPos, rayPos, dir, sample_step, result);
+		if (result.intTransmittance < 0.005f) {
+			break;
+		}
 	}
 
 	depth = result.depth / result.depthweightsum;

@@ -70,10 +70,15 @@ Shader "Yangrc/CloudShader"
 			#pragma multi_compile _ ALLOW_CLOUD_FRONT_OBJECT		//When enabled, raymarch is marched until scene depth. This will bring some artifacts when objects move in front of cloud.
 																//Or disable, cloud is always behind object, and raymarch is ended if any z is detected.
 			#pragma multi_compile LOW_QUALITY MEDIUM_QUALITY HIGH_QUALITY	//High quality uses more samples.
+			#pragma multi_compile _ USE_HI_HEIGHT
 			#pragma vertex vert
 			#pragma fragment frag
-			//#include "./CloudShaderHelper.cginc"
+
+#if USE_HI_HEIGHT
+			#include "./CloudHierarchicalRaymarch.cginc"
+#else
 			#include "./CloudNormalRaymarch.cginc"
+#endif	
 			#include "UnityCG.cginc"
 
 #if defined(HIGH_QUALITY)
@@ -134,8 +139,14 @@ Shader "Yangrc/CloudShader"
 
 				float intensity, distance;
 				//TODO: sceneDepth here is distance in camera z-axis, but the parameter should be radial distance.
+#if USE_HI_HEIGHT
+				int iteration_count;
+				float4 debug;
+				float density = HierarchicalRaymarch(worldPos, viewDir, raymarchEnd, sample_count, offset, /*out*/intensity, /*out*/distance, /*out*/iteration_count, debug);
+				return debug;
+#else
 				float density = GetDensity(worldPos, viewDir, raymarchEnd, sample_count, offset, /*out*/intensity, /*out*/distance);
-
+#endif
 				return float4(intensity, distance, 1.0f, density);
 			}
 
