@@ -26,7 +26,7 @@ RenderSettings:
   m_AmbientIntensity: 1
   m_AmbientMode: 0
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
-  m_SkyboxMaterial: {fileID: 10304, guid: 0000000000000000f000000000000000, type: 0}
+  m_SkyboxMaterial: {fileID: 1953658193}
   m_HaloStrength: 0.5
   m_FlareStrength: 1
   m_FlareFadeSpeed: 3
@@ -138,8 +138,8 @@ Light:
   m_Enabled: 1
   serializedVersion: 8
   m_Type: 1
-  m_Color: {r: 1, g: 0.96572006, b: 0.9044118, a: 1}
-  m_Intensity: 1.2
+  m_Color: {r: 0.9558824, g: 0.6199663, b: 0.26005626, a: 1}
+  m_Intensity: 1.91
   m_Range: 10
   m_SpotAngle: 30
   m_CookieSize: 10
@@ -171,36 +171,57 @@ Transform:
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 49040650}
-  m_LocalRotation: {x: -0.52715605, y: 0.67356503, z: -0.4896874, w: -0.16918293}
+  m_LocalRotation: {x: -0.99103653, y: -0.12916742, z: 0.03387993, w: -0.0038055014}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 1
-  m_LocalEulerAnglesHint: {x: 56.934002, y: 148.093, z: -93.717}
---- !u!1 &466916245
+  m_LocalEulerAnglesHint: {x: 539.066, y: -716.206, z: -14.820984}
+--- !u!1 &636899334
 GameObject:
   m_ObjectHideFlags: 0
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   serializedVersion: 5
   m_Component:
-  - component: {fileID: 466916246}
+  - component: {fileID: 636899336}
+  - component: {fileID: 636899335}
   m_Layer: 0
-  m_Name: GameObject
+  m_Name: AtmManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &466916246
+--- !u!114 &636899335
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 636899334}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e16dd2ddbdfa7ea4f87a3cfb032ffd0f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  progressiveUpdate: 0
+  computeShader: {fileID: 7200000, guid: 2d4396a54b390d742b84d4bb4a122e54, type: 3}
+  outputDebug: 0
+  lutConfig:
+    transmittanceSize: {x: 512, y: 512}
+    scatteringSize: {x: 32, y: 32, z: 128}
+    irradianceSize: {x: 32, y: 32}
+    cameraVolumeSize: {x: 128, y: 128, z: 32}
+  atmosphereConfig: {fileID: 11400000, guid: 8e73e89daf00b8447b2410427953df25, type: 2}
+--- !u!4 &636899336
 Transform:
   m_ObjectHideFlags: 0
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
-  m_GameObject: {fileID: 466916245}
+  m_GameObject: {fileID: 636899334}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -317.8709, y: 20000, z: -159.77051}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
@@ -217,6 +238,7 @@ GameObject:
   - component: {fileID: 1748146231}
   - component: {fileID: 1748146229}
   - component: {fileID: 1748146234}
+  - component: {fileID: 1748146236}
   - component: {fileID: 1748146233}
   - component: {fileID: 1748146235}
   m_Layer: 0
@@ -275,13 +297,13 @@ Transform:
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 1748146228}
-  m_LocalRotation: {x: -0.46222746, y: -0, z: -0, w: 0.8867614}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: 0.2475641, y: -0, z: -0, w: 0.9688715}
+  m_LocalPosition: {x: 0, y: 20000, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 0
-  m_LocalEulerAnglesHint: {x: -55.062004, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 28.667002, y: 0, z: 0}
 --- !u!114 &1748146233
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -305,7 +327,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9f1db61281524fb40bc9a1f6acce6baf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  configuration: {fileID: 11400000, guid: e9b06b77cd78e5e4b95a6ca30e5f61e7, type: 2}
+  configuration: {fileID: 11400000, guid: a15886e93ac3e7847861da392782f13d, type: 2}
   downSample: 1
   quality: 0
   allowCloudFrontObject: 0
@@ -322,8 +344,40 @@ MonoBehaviour:
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 1748146228}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0a9c4d2e823dfc247b2f6850f76ca2b6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &1748146236
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 1748146228}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b535dacf702e20c4b9ef528e42081835, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  volumeTexSize: {x: 128, y: 128, z: 32}
+--- !u!21 &1953658193
+Material:
+  serializedVersion: 6
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_Name: Skybox/AtmosphereScatteringPrecomputed
+  m_Shader: {fileID: 4800000, guid: e2088dd19a71d1244976cd0de1ff68a7, type: 3}
+  m_ShaderKeywords: 
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Floats: []
+    m_Colors: []

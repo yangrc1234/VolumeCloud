@@ -42,9 +42,9 @@ namespace Yangrc.VolumeCloud {
     [ExecuteInEditMode,RequireComponent(typeof(Camera))]
     [ImageEffectOpaque]
         public class VolumeCloudRenderer : EffectBase {
-        [SerializeField]
-        private Shader cloudShader;
+        [Header("Config")]
         public VolumeCloudConfiguration configuration;
+        [Header("Render Settings")]
         [Range(0, 2)]
         public int downSample = 1;
         public Quality quality;
@@ -68,16 +68,20 @@ namespace Yangrc.VolumeCloud {
 
         [Header("Hi-Height")]
         [SerializeField]
-        private ComputeShader heightPreprocessShader;
-        [SerializeField]
-        private Shader cloudHeightProcessShader;
-        [SerializeField]
         private bool useHierarchicalHeightMap;
         private Vector2Int hiHeightLevelRange = new Vector2Int(0, 9);
         private Vector2Int heightLutTextureSize = new Vector2Int(512, 512);
         private RenderTexture heightLutTexture;
         private RenderTexture hiHeightTexture;
         private RenderTexture[] hiHeightTempTextures;
+
+        [Header("Shader references(DONT EDIT)")]
+        [SerializeField]
+        private Shader cloudShader;
+        [SerializeField]
+        private ComputeShader heightPreprocessShader;
+        [SerializeField]
+        private Shader cloudHeightProcessShader;
 
         void EnsureMaterial(bool force = false) {
             if (mat == null || force) {
@@ -120,11 +124,12 @@ namespace Yangrc.VolumeCloud {
                 throw new UnityException("Hierarchical height map mode only supports weather tex of size 512*512!");
             }
 
-            EnsureRenderTarget(ref heightLutTexture, heightLutTextureSize.x, heightLutTextureSize.y, RenderTextureFormat.RFloat, FilterMode.Point, randomWrite:true);
-            var kernal = heightPreprocessShader.FindKernel("CSMain");
-            heightPreprocessShader.SetTexture(kernal, "heightDensityMap", configuration.heightDensityMap);
-            heightPreprocessShader.SetTexture(kernal, "heightLutResult", this.heightLutTexture);
-            heightPreprocessShader.Dispatch(kernal, heightLutTextureSize.x / 32, heightLutTextureSize.y / 32, 1);
+            if (EnsureRenderTarget(ref heightLutTexture, heightLutTextureSize.x, heightLutTextureSize.y, RenderTextureFormat.RFloat, FilterMode.Point, randomWrite: true)) {
+                var kernal = heightPreprocessShader.FindKernel("CSMain");
+                heightPreprocessShader.SetTexture(kernal, "heightDensityMap", configuration.heightDensityMap);
+                heightPreprocessShader.SetTexture(kernal, "heightLutResult", this.heightLutTexture);
+                heightPreprocessShader.Dispatch(kernal, heightLutTextureSize.x / 32, heightLutTextureSize.y / 32, 1);
+            }
 
             EnsureRenderTarget(ref hiHeightTexture, 512, 512, RenderTextureFormat.RFloat, configuration.weatherTex.filterMode, wrapMode: configuration.weatherTex.wrapMode, randomWrite: true, useMipmap:true);
 

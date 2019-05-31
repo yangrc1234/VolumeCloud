@@ -1,10 +1,15 @@
 # Volume Cloud for Unity3D
 ![](./Screenshots/1.png)
+*Cloud at dawn.*  
 ![](./Screenshots/2.png)
+*Cloud forms a hole in the sky.*  
 ![](./Screenshots/3.png)
-**Volume Cloud for Unity3D** is a plugin for rendering cloud using raymarch. For now only compatible with standard rendering pipeline.  
-The first screenshot is rendered in combination with my atmosphere scattering system([Here](https://github.com/yangrc1234/AtmosphereScatter))(The ap system is just my hobby project, not optimized at all. It's included in this repo, use it at your own risk).  
-The second and third screenshot is rendered without any dependency.
+*A huge cloud at distant.*  
+![](./Screenshots/0.png)
+*Cloud view from above. With the hi-height(name from hi-z since they're similar) technique, a much larger view range could be used when rendering cloud.  The screenshot is rendered with my atmosphere scattering system([Here](https://github.com/yangrc1234/AtmosphereScatter))*  
+*(The ap system is just my hobby project, not optimized at all. It's included in this repo, use it at your own risk).*
+
+**Volume Cloud for Unity3D** is a plugin for rendering cloud using raymarch. For now only compatible with standard rendering pipeline.
 
 # Quick startup
 Clone the repo, find three screenshot scenes under folder in Assets/VolumeCloud/Example, and you should see the cloud right away.  
@@ -21,6 +26,7 @@ In this section you'll learn how to setup and adjust the shape and looking of th
 * **Use Ap system**. Check this only when AtmosphereScatteringLutManager script in scene. (It will have impact on performance, since the atmosphere scattering system is not very optimized. I only used it for the screenshot.)  
 The script has a config parameter. Create a new config by rightclick - Create - Volume Cloud Configuration. By default there's a config file under Assets\VolumeCloud\Example.  
 There're many paramters you can tweak in the config file. Most of the params are intuitive enough to play with.
+* **Use Hi-Height Map**. Check to enable Hi-height map feature. The Hi-height map is an empty space skipping technique. It could help extending the view range above cloud layer, skipping lots of samples when there's no cloud with some extra 2D texture lookups. It introduces some overheads, but saves the sample count required to render distant cloud.   
 3. Adjust cloud properties in the config file. See below.
 
 # Cloud Configuration
@@ -63,16 +69,35 @@ Atmosphere saturate distance indicates how far will the cloud be invisible due t
 Wind effect simulates the cloud moving by rotating the noise texture. So the overall cloud position won't be changed.  
 
 # Misc
+If you're intersted in how volume cloud is implemented, see the references. Or if you're intersted at what improvements I made and how, refer to the IMPLEMENTATIONDETAIL.md at root folder.
 
 ## Benchmark
-Incoming.
+The benchmark here is done in Unity Editor (Sorry for my lazyness), on my laptop with GTX 1060 6G.
+
+Two tables are listed, with the first set to same options used to render screenshots at top, to show the performance under generic usage.  
+
+And the second rendered at full resolution, to better show how each option affects performance.  
+
+| Scene  | Quality | DownSample | Hi-Height enabled  | Fps | Comment |
+| ------------- | ------------- | ------------- | ------------- |------------- |------------- |
+| Screenshot1  | Low  | Half | True   | 1.0ms  | |
+| Screenshot2  | Low  | Half | True  | 1.0ms  | |
+| Screenshot3  | Low  | Half | True   | 1.1ms  | | 
+| Screenshot4  | Low  | Half | True  | 5.0ms  | Above cloud layer, many hi-height lookups |
+
+| Scene  | Quality | DownSample | Hi-Height enabled  | Fps | Comment |
+| ------------- | ------------- | ------------- | ------------- |------------- |------------- |
+| Screenshot1  | Low  | Full | True   | 9.0ms  | |
+| Screenshot1  | Low  | Full | False  | 7.2ms  | |
+| Screenshot1  | High  | Full | True   | 10.0ms  | |
+| Screenshot4  | Low  | Full | True  | 11.5ms  | Above cloud layer, many hi-height lookups|
 
 ## Known issues
 Object edge glitch when allow cloud front is checked and downsampled, due to edge-preserving upsample is not implemented yet.
 
 ## TODO
 - [x] Add aerial perspective things.  
-- [ ] Extend view distance above cloud.
+- [x] Extend view distance above cloud.
 - [ ] HDRP integration?  
 - [ ] Weather map generator.  
 - [ ] Make the noise generator usable.  
@@ -91,86 +116,4 @@ Object edge glitch when allow cloud front is checked and downsampled, due to edg
 19/3/2 - Added depth estimation stuff, reduced blur problem when rotating camera.  
 19/3/4 - Rewrite lighting code, using methods from [4], it should be very "physically based" now.  
 19/5/18 - Rewrite raymarch and TAA. The 4x4 pattern is obsoleted. A full-screen raymarch with much lower sample count and temporal reprojection is used now.  
-
-# Implementation Details  
-This section describes some details about implementation. It's for developers who are also working on volume cloud. So some common topics won't be covered here. If you want to see the full pipeline, check the talks/articles in references.
-
-## 4x4 or temporal
-The major problem encountered during volume cloud rendering is performance. To obtain a nice-looking cloud, a really high sample count is required. Two methods are presented: Rendering each 4x4 cloud pixels in 16 frames, with high sample count(96)[1][2]. Or use a realtively low sample count(16 in frostbite) with full-resolution pass, combined with temporal reprojection to fix the looking.  
-In the first version I implemented I chose to use the 4x4 way, but now I chose to use the frostbite's way for much cleaner code and easier to do more things(See improvements below).  
-
-## Passes  
-Three passes are required in my implementation.  
-First pass renders an undersampled result for current frame. Second pass uses the result of first pass and history buffer to combine final result for this frame. Here the buffer stores sun intensity, estimated cloud depth and transmittance.  
-Third pass does lighting using result of second pass, then blend with final image.  
-
-## Raymarch Offset 
-For each frame, raymarch rays are offset by a random value from halton sequence and a "bayer offset".  
-The offset of halton sequence is generated in C# script, using code from Unity post-processing stack, and all rays share the same offset.  
-By default, halton sequence alone is able to make temporal reprojection work. But bayer offset is required for later improvements.  
-Bayer offset is based on bayer matrix. Every 3x3 pixel uses a 3x3 bayer matrix value to offset their rays.  
-So the final offset of a ray is calculated by following code:  
-```
-static const float bayerOffsets[3][3] = {
-	{0, 7, 3},
-	{6, 5, 2},
-	{4, 1, 8}
-};
-...
-int2 texelID = int2(fmod(screenPos/ _TexelSize , 3.0));	//Calculate a texel id to index bayer matrix.						
-float bayerOffset = (bayerOffsets[texelID.x][texelID.y]) / 9.0f;	//bayeroffset between[0,1)
-float offset = -fmod(_RaymarchOffset + bayerOffset, 1.0f);			//final offset combined. The value will be multiplied by sample step in GetDensity.
-```
-
-## Temporal Reprojection  
-During second pass, temporal reprojection is done.  
-The vp matrix of previous frame is used to do reprojection for simplicity.  
-A simple version for blend history buffer would be like: 
-```
-result = lerp(prevSample, raymarchResult, max(0.05f, outOfBound));
-```
-This works great if the camera could only rotate, and don't move at all. But the ghosting effects will appear once the camera starts to move in a large distance, just like regular TAA problems. Of course one could always fake the camera at (0,0,0) when rendering cloud, but that's not what I want.  
-So I tried to use the fix in fixing TAA ghosting[5].  
-```
-float4 prevSample = tex2D(_MainTex, prevUV);
-float2 xoffset = float2(_UndersampleCloudTex_TexelSize.x, 0.0f);
-float2 yoffset = float2(0.0f, _UndersampleCloudTex_TexelSize.y);
-
-float4 m1 = 0.0f, m2 = 0.0f;
-//The loop below calculates mean and variance used to calculate AABB.
-[unroll]
-for (int x = -1; x <= 1; x ++) {
-    [unroll]
-    for (int y = -1; y <= 1; y ++ ) {
-        float4 val;
-        if (x == 0 && y == 0) {
-            val = raymarchResult;
-        }
-        else {
-            val = tex2Dlod(_UndersampleCloudTex, float4(i.uv + xoffset * x + yoffset * y, 0.0, 0.0));
-        }
-        m1 += val;
-        m2 += val * val;
-    }
-}
-//Code from https://zhuanlan.zhihu.com/p/64993622.
-float gamma = 1.0f;
-float4 mu = m1 / 9;
-float4 sigma = sqrt(abs(m2 / 9 - mu * mu));
-float4 minc = mu - gamma * sigma;
-float4 maxc = mu + gamma * sigma;
-prevSample = ClipAABB(minc, maxc, prevSample);	
-
-//Blend.
-raymarchResult = lerp(prevSample, raymarchResult, max(0.05f, outOfBound));
-```
-
-Though the buffer stores intensity, depth and transmittance, it turns out the those techniques just work with these "non-color" values. Except they don't work with the rest(assume we haven't added bayer offset)(see following gif).   
-![](./Screenshots/WhatHappened.gif)  
-So, what happened here? It seems like we are back to the age without temporal reprojection and sample count is low.  
-Briefly, the ClipAABB technique clip previous sample using a range built by surrounding pixels in current buffer.  But in our case, all surrounding pixels are undersampled result, and they share the same ray offset(before bayer offset is added), causing them easy to crash into a small area(Here the "area" is for the space built by intensity, depth and transmittance). Then this small area is used to clip history sample, making the history sample get clipped into this small area as well.  
-So, bayer matrix comes to help. The idea is simple, we need the 9 samples in current frame to cover a larger area. By offset each ray in the 3x3 matrix, every ray is now intersecting with much different samples, and that makes a difference. (Below is the result)
-![](./Screenshots/NiceAndStable.gif)  
-And thanks to the really nice ClipAABB, moving the camera is not a trouble anymore, everything works like a charm.
-![](./Screenshots/StableReprojection.gif)  
-(You can also see that view range is very limited above cloud, cause I limited max raymarch distance to avoid glitch of distance cloud. It's my next target to solve the range problem)
+19/5/31 - Hi-Height technique implemented.  
