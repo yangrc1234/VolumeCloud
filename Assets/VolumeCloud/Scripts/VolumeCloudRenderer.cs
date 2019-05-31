@@ -73,7 +73,7 @@ namespace Yangrc.VolumeCloud {
         private Shader cloudHeightProcessShader;
         [SerializeField]
         private bool useHierarchicalHeightMap;
-        private Vector2Int hiHeightLevelRange = new Vector2Int(1, 9);
+        private Vector2Int hiHeightLevelRange = new Vector2Int(0, 9);
         private Vector2Int heightLutTextureSize = new Vector2Int(512, 512);
         private RenderTexture heightLutTexture;
         private RenderTexture hiHeightTexture;
@@ -126,7 +126,7 @@ namespace Yangrc.VolumeCloud {
             heightPreprocessShader.SetTexture(kernal, "heightLutResult", this.heightLutTexture);
             heightPreprocessShader.Dispatch(kernal, heightLutTextureSize.x / 32, heightLutTextureSize.y / 32, 1);
 
-            EnsureRenderTarget(ref hiHeightTexture, 512, 512, RenderTextureFormat.RFloat, FilterMode.Point, wrapMode: configuration.weatherTex.wrapMode, randomWrite: true, useMipmap:true);
+            EnsureRenderTarget(ref hiHeightTexture, 512, 512, RenderTextureFormat.RFloat, configuration.weatherTex.filterMode, wrapMode: configuration.weatherTex.wrapMode, randomWrite: true, useMipmap:true);
 
             EnsureArray(ref hiHeightTempTextures, 10);
             for (int i = 0; i <= 9; i++) {
