@@ -73,10 +73,8 @@ namespace Yangrc.VolumeCloud {
         private Shader cloudHeightProcessShader;
         [SerializeField]
         private bool useHierarchicalHeightMap;
-        [SerializeField]
-        private Vector2Int hiHeightLevelRange = new Vector2Int(0, 9);
-        [SerializeField]
-        private Vector2Int heightLutTextureSize = new Vector2Int(128, 128);
+        private Vector2Int hiHeightLevelRange = new Vector2Int(1, 9);
+        private Vector2Int heightLutTextureSize = new Vector2Int(512, 512);
         private RenderTexture heightLutTexture;
         private RenderTexture hiHeightTexture;
         private RenderTexture[] hiHeightTempTextures;

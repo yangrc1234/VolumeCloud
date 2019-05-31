@@ -171,13 +171,13 @@ Transform:
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 49040650}
-  m_LocalRotation: {x: -0.15953219, y: 0.8403171, z: -0.35755917, w: -0.3749243}
+  m_LocalRotation: {x: -0.52715605, y: 0.67356503, z: -0.4896874, w: -0.16918293}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 1
-  m_LocalEulerAnglesHint: {x: 46.1, y: 228.09, z: 0}
+  m_LocalEulerAnglesHint: {x: 56.934002, y: 148.093, z: -93.717}
 --- !u!1 &466916245
 GameObject:
   m_ObjectHideFlags: 0
@@ -275,13 +275,13 @@ Transform:
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 1748146228}
-  m_LocalRotation: {x: 0.27237123, y: 0.6710338, z: 0.2927274, w: -0.62437034}
-  m_LocalPosition: {x: 2742, y: 0, z: 2009}
+  m_LocalRotation: {x: -0.46222746, y: -0, z: -0, w: 0.8867614}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 0
-  m_LocalEulerAnglesHint: {x: -47.137, y: -454.126, z: 0}
+  m_LocalEulerAnglesHint: {x: -55.062004, y: 0, z: 0}
 --- !u!114 &1748146233
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -316,8 +316,6 @@ MonoBehaviour:
   cloudHeightProcessShader: {fileID: 4800000, guid: b80bf04ca56d3d642a6b925cff3f5ddf,
     type: 3}
   useHierarchicalHeightMap: 1
-  hiHeightLevelRange: {x: 1, y: 9}
-  heightLutTextureSize: {x: 512, y: 512}
 --- !u!114 &1748146235
 MonoBehaviour:
   m_ObjectHideFlags: 0
