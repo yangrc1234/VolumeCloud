@@ -18,6 +18,9 @@ Shader "Yangrc/CloudShader"
 		_CloudTopOffset("TopOffset",float) = 100
 		_CloudSize("CloudSize", float) = 50000
 
+		_CloudStartHeight("CloudStartHeight", float) = 2000
+		_CloudEndHeight("CloudEndHeight", float) = 8000
+
 		_CloudOverallDensity("CloudOverallDensity",float) = .1
 		_CloudCoverageModifier("CloudCoverageModifier", float) = 1.0
 		_CloudTypeModifier("CloudTypeModifier", float) = 1.0

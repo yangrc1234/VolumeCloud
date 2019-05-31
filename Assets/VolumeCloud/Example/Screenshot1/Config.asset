@@ -11,6 +11,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: edad34612c85d2e4da1745df6c135220, type: 3}
   m_Name: Config
   m_EditorClassIdentifier: 
+  weatherTex: {fileID: 2800000, guid: 4f3f3112dcf000b47ac790c3b15cf3ec, type: 3}
+  weatherTexSize: 50000
+  cloudHeightRange: {x: 1500, y: 8000}
   baseTexture: {fileID: 11700000, guid: 3ed67598438ec1e4dba28385e35a557b, type: 2}
   baseTile: 2
   heightDensityMap: {fileID: 2800000, guid: a27c79a96e56b794a9bcb99b3b2df92b, type: 3}
@@ -35,5 +38,3 @@ MonoBehaviour:
   multiScatteringEC: 0.5
   silverSpread: 0.1
   atmosphereSaturateDistance: 60000
-  weatherTex: {fileID: 2800000, guid: 4f3f3112dcf000b47ac790c3b15cf3ec, type: 3}
-  weatherTexSize: 50000

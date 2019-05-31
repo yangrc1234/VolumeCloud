@@ -12,6 +12,7 @@ namespace Yangrc.VolumeCloud {
         public float weatherTexSize = 40000;
 
         [Header("Shape")]
+        public Vector2 cloudHeightRange = new Vector2(1500.0f, 9000.0f);
         public Texture3D baseTexture;
         [Range(0, 5)]
         public float baseTile = 2.0f;
@@ -70,6 +71,9 @@ namespace Yangrc.VolumeCloud {
         public float atmosphereSaturateDistance = 100000.0f;
 
         private class PropertyHash {
+            public static int cloudStartHeight = Shader.PropertyToID("_CloudStartHeight");
+            public static int cloudEndHeight = Shader.PropertyToID("_CloudEndHeight");
+
             public static int baseTex = Shader.PropertyToID("_BaseTex");
             public static int baseTile = Shader.PropertyToID("_BaseTile");
 
@@ -105,6 +109,9 @@ namespace Yangrc.VolumeCloud {
         }
 
         public void ApplyToMaterial(Material mat) {
+            mat.SetFloat(PropertyHash.cloudStartHeight, cloudHeightRange.x);
+            mat.SetFloat(PropertyHash.cloudEndHeight, cloudHeightRange.y);
+
             mat.SetTexture(PropertyHash.baseTex, baseTexture);
             mat.SetTexture(PropertyHash.detailTex, detailTexture);
             mat.SetTexture(PropertyHash.curlNoise, curlNoise);

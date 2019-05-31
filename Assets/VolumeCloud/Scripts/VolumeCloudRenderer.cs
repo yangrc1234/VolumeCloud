@@ -70,16 +70,16 @@ namespace Yangrc.VolumeCloud {
         [SerializeField]
         private ComputeShader heightPreprocessShader;
         [SerializeField]
-        private bool useHierarchicalHeightMap;
-        [SerializeField]
         private Shader cloudHeightProcessShader;
+        [SerializeField]
+        private bool useHierarchicalHeightMap;
         [SerializeField]
         private Vector2Int hiHeightLevelRange = new Vector2Int(0, 9);
         [SerializeField]
-        private Vector2Int heightLutTextureSize = new Vector2Int(512, 512);
-        public RenderTexture heightLutTexture;
-        public RenderTexture hiHeightTexture;
-        public RenderTexture[] hiHeightTempTextures;
+        private Vector2Int heightLutTextureSize = new Vector2Int(128, 128);
+        private RenderTexture heightLutTexture;
+        private RenderTexture hiHeightTexture;
+        private RenderTexture[] hiHeightTempTextures;
 
         void EnsureMaterial(bool force = false) {
             if (mat == null || force) {
@@ -126,9 +126,9 @@ namespace Yangrc.VolumeCloud {
             var kernal = heightPreprocessShader.FindKernel("CSMain");
             heightPreprocessShader.SetTexture(kernal, "heightDensityMap", configuration.heightDensityMap);
             heightPreprocessShader.SetTexture(kernal, "heightLutResult", this.heightLutTexture);
-            heightPreprocessShader.Dispatch(kernal, heightLutTextureSize.x, heightLutTextureSize.y, 1);
+            heightPreprocessShader.Dispatch(kernal, heightLutTextureSize.x / 32, heightLutTextureSize.y / 32, 1);
 
-            EnsureRenderTarget(ref hiHeightTexture, 512, 512, RenderTextureFormat.RFloat, FilterMode.Point, wrapMode: TextureWrapMode.Repeat, randomWrite: true, useMipmap:true);
+            EnsureRenderTarget(ref hiHeightTexture, 512, 512, RenderTextureFormat.RFloat, FilterMode.Point, wrapMode: configuration.weatherTex.wrapMode, randomWrite: true, useMipmap:true);
 
             EnsureArray(ref hiHeightTempTextures, 10);
             for (int i = 0; i <= 9; i++) {

@@ -1,14 +1,9 @@
 #include "UnityCG.cginc"
 
-#define THICKNESS 8000.0
-#define CENTER 5500.0
-
 #define EARTH_RADIUS 6371000.0
 #define EARTH_CENTER float3(0, -EARTH_RADIUS, 0)
-#define CLOUDS_START (CENTER - THICKNESS/2)
-#define CLOUDS_END (CENTER + THICKNESS/2)
 
-#define TRANSMITTANCE_SAMPLE_STEP 256.0f
+#define TRANSMITTANCE_SAMPLE_STEP 512.0f
 
 static const float bayerOffsets[3][3] = {
 	{0, 7, 3},
@@ -17,6 +12,8 @@ static const float bayerOffsets[3][3] = {
 };
 
 //Base shape
+float _CloudStartHeight;
+float _CloudEndHeight;
 sampler3D _BaseTex;
 float _BaseTile;
 sampler2D _HeightDensity;
@@ -65,7 +62,7 @@ float HeightPercent(float3 worldPos) {
 
 	float heightOffset = EARTH_RADIUS - sqrt(max(0.0, EARTH_RADIUS * EARTH_RADIUS - sqrMag));
 
-	return saturate((worldPos.y + heightOffset - CENTER + THICKNESS / 2) / THICKNESS);
+	return saturate((worldPos.y + heightOffset - _CloudStartHeight) / (_CloudEndHeight-_CloudStartHeight));
 }
 
 static float4 cloudGradients[3] = {
@@ -229,11 +226,11 @@ bool ray_trace_sphere(float3 center, float3 rd, float3 offset, float radius, out
 bool resolve_ray_start_end(float3 ws_origin, float3 ws_ray, out float start, out float end) {
 	//case includes on ground, inside atm, above atm.
 	float ot1, ot2, it1, it2;
-	bool outIntersected = ray_trace_sphere(ws_origin, ws_ray, EARTH_CENTER, EARTH_RADIUS + CLOUDS_END, ot1, ot2);
+	bool outIntersected = ray_trace_sphere(ws_origin, ws_ray, EARTH_CENTER, EARTH_RADIUS + _CloudEndHeight, ot1, ot2);
 	if (!outIntersected || ot2 < 0.0f)
 		return false;	//you see nothing.
 
-	bool inIntersected = ray_trace_sphere(ws_origin, ws_ray, EARTH_CENTER, EARTH_RADIUS + CLOUDS_START, it1, it2);
+	bool inIntersected = ray_trace_sphere(ws_origin, ws_ray, EARTH_CENTER, EARTH_RADIUS + _CloudStartHeight, it1, it2);
 	
 	if (inIntersected) {
 		if (it1 * it2 < 0) {

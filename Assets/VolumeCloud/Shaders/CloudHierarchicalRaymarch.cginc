@@ -68,7 +68,7 @@ float HierarchicalRaymarch(float3 startPos, float3 dir, float maxSampleDistance,
     while(currentStep < maxStepCount && iteration_count++ < 64) {
         float3 raypos = startPos + currentStep * v;
         float2 uv = (raypos.xz / _WeatherTexSize) + 0.5;
-        float height = tex2Dlod(_HiHeightMap, float4(uv, 0.0, currentZLevel)) * THICKNESS + CLOUDS_START;
+        float height = tex2Dlod(_HiHeightMap, float4(uv, 0.0, currentZLevel)) * (_CloudEndHeight - _CloudStartHeight )+ _CloudStartHeight;
         int2 oldCellIndex = GetCellIndex(raypos.xz, currentZLevel);
 
         float rayhitStepSize;

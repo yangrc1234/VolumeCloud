@@ -13,6 +13,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   weatherTex: {fileID: 2800000, guid: d9c1df7019059ba408ab9e1ce569088c, type: 3}
   weatherTexSize: 50000
+  cloudHeightRange: {x: 1500, y: 9000}
   baseTexture: {fileID: 11700000, guid: 3ed67598438ec1e4dba28385e35a557b, type: 2}
   baseTile: 2
   heightDensityMap: {fileID: 2800000, guid: a27c79a96e56b794a9bcb99b3b2df92b, type: 3}
