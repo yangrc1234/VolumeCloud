@@ -8,7 +8,7 @@ Calculate height lookup table through height-density map.
 */
 sampler2D heightDensityMap;
 RWTexture2D<float> heightLutResult;
-#define SAMPLE_COUNT 32
+#define SAMPLE_COUNT 128
 #include "CloudShaderHelper.cginc"
 [numthreads(1, 1, 1)]
 void CSMain (uint3 id : SV_DispatchThreadID)

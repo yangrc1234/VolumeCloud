@@ -37,9 +37,8 @@ float IntersectWithCellBoundary(float3 origin, float3 v, uint zlevel, int2 cellI
     return min(max(xAxisIntersectT.x, xAxisIntersectT.y), max(zAxisIntersectT.x, zAxisIntersectT.y));
 }
 
-float HierarchicalRaymarch(float3 startPos, float3 dir, float maxSampleDistance, int max_sample_count, float raymarchOffset, out float intensity, out float depth, out int iteration_count, inout float4 debug) {
+float HierarchicalRaymarch(float3 startPos, float3 dir, float maxSampleDistance, int max_sample_count, float raymarchOffset, out float intensity, out float depth, out int iteration_count) {
     float sampleStart, sampleEnd;
-	debug = 0.0f;
 	if (!resolve_ray_start_end(startPos, dir, sampleStart, sampleEnd)) {
 		intensity = 0.0;
 		depth = 1e6;
@@ -64,8 +63,7 @@ float HierarchicalRaymarch(float3 startPos, float3 dir, float maxSampleDistance,
 	InitRaymarchStatus(result);
 
 	iteration_count = 0;
-	bool debugflag = false;
-	int debugcount = 0;
+
 	[loop]
     while(currentStep < maxStepCount && iteration_count++ < 64) {
         float3 raypos = startPos + currentStep * v;
@@ -84,7 +82,7 @@ float HierarchicalRaymarch(float3 startPos, float3 dir, float maxSampleDistance,
                 //tmpRay is the intersection point of the height plane and ray.
                 float3 tmpRay = raypos + v * rayhitStepSize;
                 int2 newCellIndex = GetCellIndex(tmpRay.xz, currentZLevel);
-                intersected = newCellIndex == oldCellIndex;
+				intersected = newCellIndex.x == oldCellIndex.x && newCellIndex.y == oldCellIndex.y;
             } else {
                 intersected = false;
             }
@@ -114,9 +112,5 @@ float HierarchicalRaymarch(float3 startPos, float3 dir, float maxSampleDistance,
 		depth = sampleEnd;
 	}
 	intensity = result.intensity;
-	//debug = (iteration_count / 32.0f);
-	//debug = debugflag ? 1.0f : 0.0f;
-	//debug = debugcount / 100.0f;
-	//debug = currentStep / maxStepCount;
 	return (1.0f - result.intTransmittance);	
 }

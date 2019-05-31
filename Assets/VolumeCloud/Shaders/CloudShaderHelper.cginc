@@ -218,8 +218,9 @@ bool ray_trace_sphere(float3 center, float3 rd, float3 offset, float radius, out
 
 	float f = b * b - c;
 	if (f >= 0.0) {
-		t1 = -b - sqrt(f);
-		t2 = -b + sqrt(f);
+		float dem = sqrt(f);
+		t1 = -b - dem;
+		t2 = -b + dem;
 		return true;
 	}
 	return false;
@@ -229,27 +230,37 @@ bool resolve_ray_start_end(float3 ws_origin, float3 ws_ray, out float start, out
 	//case includes on ground, inside atm, above atm.
 	float ot1, ot2, it1, it2;
 	bool outIntersected = ray_trace_sphere(ws_origin, ws_ray, EARTH_CENTER, EARTH_RADIUS + CLOUDS_END, ot1, ot2);
-	if (!outIntersected)
+	if (!outIntersected || ot2 < 0.0f)
 		return false;	//you see nothing.
 
 	bool inIntersected = ray_trace_sphere(ws_origin, ws_ray, EARTH_CENTER, EARTH_RADIUS + CLOUDS_START, it1, it2);
 	
 	if (inIntersected) {
-		if (it1 < 0) {
+		if (it1 * it2 < 0) {
 			//we're on ground.
 			start = max(it2, 0);
 			end = ot2;
 		}
 		else {
 			//we're inside atm, or above atm.
-			end = it1;
-			if (ot1 < 0) {
-				//inside atm.
+			if (ot1 * ot2 < 0) {		//Inside atm.
+				if (it1 > 0.0) {
+					//Look down.
+					end = it1;
+				}
+				else {
+					//Look up.
+					end = ot2;
+				}
 				start = 0.0f;
-			}
-			else {
-				//above atm.
-				start = ot1;
+			} else {			//Outside atm
+				if (ot1 < 0.0) {
+					return false;
+				}
+				else {
+					start = ot1;
+					end = it1;
+				}
 			}
 		}
 	}

@@ -123,9 +123,6 @@ namespace Yangrc.VolumeCloud {
             }
 
             EnsureRenderTarget(ref heightLutTexture, heightLutTextureSize.x, heightLutTextureSize.y, RenderTextureFormat.RFloat, FilterMode.Point, randomWrite:true);
-            if (!heightLutTexture.IsCreated()) {
-                heightLutTexture.Create();
-            }
             var kernal = heightPreprocessShader.FindKernel("CSMain");
             heightPreprocessShader.SetTexture(kernal, "heightDensityMap", configuration.heightDensityMap);
             heightPreprocessShader.SetTexture(kernal, "heightLutResult", this.heightLutTexture);

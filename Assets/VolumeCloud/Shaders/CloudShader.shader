@@ -141,9 +141,7 @@ Shader "Yangrc/CloudShader"
 				//TODO: sceneDepth here is distance in camera z-axis, but the parameter should be radial distance.
 #if USE_HI_HEIGHT
 				int iteration_count;
-				float4 debug;
-				float density = HierarchicalRaymarch(worldPos, viewDir, raymarchEnd, sample_count, offset, /*out*/intensity, /*out*/distance, /*out*/iteration_count, debug);
-				return debug;
+				float density = HierarchicalRaymarch(worldPos, viewDir, raymarchEnd, sample_count, offset, /*out*/intensity, /*out*/distance, /*out*/iteration_count);
 #else
 				float density = GetDensity(worldPos, viewDir, raymarchEnd, sample_count, offset, /*out*/intensity, /*out*/distance);
 #endif
@@ -262,7 +260,7 @@ Shader "Yangrc/CloudShader"
 							}
 						}
 						//Code from https://zhuanlan.zhihu.com/p/64993622.
-						float gamma = 1.0f;
+						float gamma = 1.5f;
 						float4 mu = m1 / 9;
 						float4 sigma = sqrt(abs(m2 / 9 - mu * mu));
 						float4 minc = mu - gamma * sigma;
