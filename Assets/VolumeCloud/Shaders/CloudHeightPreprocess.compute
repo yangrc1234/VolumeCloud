@@ -21,7 +21,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
 	cloudType = (0.5f + id.y) / h;
 	
 	for (float heightPercent = 1.0f; heightPercent > 0.0f; heightPercent -= 1.0f / SAMPLE_COUNT) {
-		float density = tex2Dlod(heightDensityMap, float4(cloudType, heightPercent, 0.0, 0.0)).r;
+		float density = tex2Dlod(heightDensityMap, float4(cloudType, heightPercent, 0.0, 0.0)).r * ProcessBaseTex(1.0f);
 		density = ApplyCoverageToDensity(density, coverage);
 		if (density > 0.0f) {
 			break;

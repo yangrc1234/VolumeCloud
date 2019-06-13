@@ -103,9 +103,19 @@ float HenryGreenstein(float g, float cosTheta) {
 	return k * (1.0 + cosTheta * cosTheta) / pow(abs(1.0 + g * g - 2.0 * g * cosTheta), 1.5);
 }
 
+float4 ProcessBaseTex(float4 texSample) {
+	texSample = saturate(pow(texSample, 1.8f));
+
+	float low_freq_fBm = (texSample.g * .625) + (texSample.b * 0.25) + (texSample.a * 0.125);
+	float sampleResult = RemapClamped(low_freq_fBm, -0.5 * texSample.r, 1.0, 0.0, 1.0);
+
+	return sampleResult * 1.5f;
+}
+
 float ApplyCoverageToDensity(float sampleResult, float coverage){
-	sampleResult = RemapClamped(sampleResult, 1.0 - coverage, 1.0, 0.0, 1.0);
-	sampleResult *= coverage;
+	//sampleResult = RemapClamped(sampleResult, 1.0 - coverage, 1.0, 0.0, 1.0);
+	//sampleResult *= coverage;
+	sampleResult -= (1.0f - coverage);
 	return sampleResult;
 }
 
@@ -114,7 +124,7 @@ float SampleDensity(float3 worldPos,int lod, bool cheap, out float wetness) {
 	float3 unwindWorldPos = worldPos;
 	
 	//Sample the weather map.
-	half4 coverageSampleUV = half4((unwindWorldPos.xz / _WeatherTexSize), 0, 2.5);
+	float4 coverageSampleUV = float4((unwindWorldPos.xz / _WeatherTexSize), 0, 0);
 	coverageSampleUV.xy = (coverageSampleUV.xy + 0.5);
 	float3 weatherData = tex2Dlod(_WeatherTex, coverageSampleUV);
 	weatherData *= float3(_CloudCoverageModifier, 1.0, _CloudTypeModifier);
@@ -128,12 +138,9 @@ float SampleDensity(float3 worldPos,int lod, bool cheap, out float wetness) {
 		return 0.0;
 
 	//Sample base noise.
-	fixed4 tempResult;
 	worldPos = ApplyWind(worldPos);
-	tempResult = tex3Dlod(_BaseTex, half4(worldPos / _CloudSize * _BaseTile, lod)).rgba;
-	float low_freq_fBm = (tempResult.g * .625) + (tempResult.b * 0.25) + (tempResult.a * 0.125);
-	float sampleResult = RemapClamped(tempResult.r, 0.0, .1, .0, 1.0);	//perlin-worley
-	sampleResult = RemapClamped(low_freq_fBm, -0.5 * sampleResult, 1.0, 0.0, 1.0);
+	float4 tempResult = tex3Dlod(_BaseTex, float4(worldPos / _CloudSize * _BaseTile, lod)).rgba;
+	float sampleResult = ProcessBaseTex(tempResult);
 
 	//Sample Height-Density map.
 	float2 densityAndErodeness = tex2Dlod(_HeightDensity, float4(cloudType, heightPercent, 0.0, 0.0)).rg;
@@ -147,7 +154,7 @@ float SampleDensity(float3 worldPos,int lod, bool cheap, out float wetness) {
 		worldPos.xz += curl_noise.rg * (1.0 - heightPercent) * _CloudSize * _CurlStrength;
 
 		float3 tempResult2;
-		tempResult2 = tex3Dlod(_DetailTex, half4(worldPos / _CloudSize * _DetailTile, lod)).rgb;
+		tempResult2 = tex3Dlod(_DetailTex, float4(worldPos / _CloudSize * _DetailTile, lod)).rgb;
 		float detailsampleResult = (tempResult2.r * 0.625) + (tempResult2.g * 0.25) + (tempResult2.b * 0.125);
 		//Detail sample result here is worley-perlin fbm.
 
