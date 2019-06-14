@@ -29,7 +29,7 @@ MonoBehaviour:
   cloudTypeModifier: 1
   cloudCoverageModifier: 1
   windDirection: {x: 1, y: 1}
-  windSpeed: 40
+  windSpeed: -400
   ambientColor: {r: 0.29525304, g: 0.29626313, b: 0.31617647, a: 0.02745098}
   scatteringCoefficient: 0.5
   extinctionCoefficient: 0.52
