@@ -81,3 +81,12 @@ So, bayer matrix comes to help. The idea is simple, we need the 9 samples in cur
 And thanks to the really nice ClipAABB, moving the camera is not a trouble anymore, everything works like a charm.
 ![](./Screenshots/StableReprojection.gif)  
 (You can also see that view range is very limited above cloud, cause I limited max raymarch distance to avoid glitch of distance cloud. It's my next target to solve the range problem)
+
+## Hierarchical-Height(Hi-height) Map  
+Inspired by the technique Hi-Z screen space reflection, I've implemented a similar technique for fast-skipping empty space during raymarching, named hierarchical-heieght. 
+
+There's a very easy-to-understand description about hi-z screen space reflection in the slider([Here](https://www.ea.com/frostbite/news/stochastic-screen-space-reflections)). After reading it, I realized that, I could make a texture same size as weather texture, but storing the most height cloud exists, by reading data in weather texture and density-height map. Then, during raymarching, I could quickly figure out whether current raypos exists any cloud, by looking up in the texture. Also, make a pyramid of this texture by using max operator on every four pixels, so I could use this pyramid texture to do some skipping, just like the way they use in hi-z ssr.
+
+This requires the density-height texture not having some cloud type that forms a "hole" inside it, which is mostly true, if you want to simulate real-world cloud behaviour. But even breaking this limitation, this technique still helps fast-skipping in some degrees, so it doesn't really matter.
+
+Compared to most common space-skipping technique in volume rendering, this one here uses the advantage of cloud rendering that obeys the assumption above. It only uses a 2D texture pyramid, rather than a huge 3D texture or some complex bvh buffer. Also the 2D texture could be evaluated at runtime with nearly no cost. 
