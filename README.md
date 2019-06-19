@@ -59,18 +59,21 @@ The default config in example should be nice enough to use. If you want do more 
 
 ### Weather map  
 The weather Tex tells the renderer how does cloud formed over sky. It's most important if you want to adjust your sky.  
+
 RGB channles are used, R channel for cloud coverage. G channel for wetness, and B for cloud type(see below).  
+
 For now there isn't an automatic way to generate a weather map, just paint it yourself, or use those in example.  
 
 ### Height-Density Map(Idea from [4])
 Height-density map describes the density of your cloud at specified height and type. X-axis for cloud type used in weather tex, Y-axis for height.  
+
 On the R channel, density is set for corresponding cloud type and height.  
+
 On the G channel, a detail value is set for corresponding cloud type and height. Higher the value, more "round" will the cloud be.  
 
 ### Shape / Shape-Detail / Shape-Curl
-The basic idea of volume cloud rendering is raymarch though 3D cloud-like noise texture. Here two textures are used, naming base texture and detail texture.  
-The cloud shape is formed from base texture, then subtracted by detail texture.  
-Also, a curl noise is used to offset detail texture sampling, to provide a turbulence-like effect.  
+The basic idea of volume cloud rendering is raymarch though 3D cloud-like noise texture. Here two textures are used, naming base texture and detail texture.  The cloud shape is formed from base texture, then subtracted by detail texture. Also, a curl noise is used to offset detail texture sampling, to provide a turbulence-like effect.  
+
 Adjust corresponding settings will affect how sampling is done.  
 
 ### Shape Modifiers
@@ -78,8 +81,11 @@ These are global modifiers for some values. Just leave them for 1.
 
 ### Lighting  
 The cloud lighting contains ambient light and directional light color contribution.  
+
 Ambient color is directly added to final result no matter what.   
+
 Scattering/Extinction coefficient are used to adjust how directional light affects cloud. Extinction describes how much cloud receives light, and scattering describes how much cloud scatters the light. Extinction value should never be greater than scattering value unless you want a non-physical effect(Or, the cloud in your game can glow).  
+
 The multi-scattering section contains parameters for simulate multi-scattering effects. The idea is from [4]. Hover your mouse over the label for more info.  
 
 ### Lighting - Silver
