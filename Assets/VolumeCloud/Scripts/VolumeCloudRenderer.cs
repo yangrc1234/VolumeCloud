@@ -222,12 +222,13 @@ namespace Yangrc.VolumeCloud {
             mat.SetVector("_TexelSize", undersampleBuffer.texelSize);
 
             //0. Check if we need a downsampled depth texture(allow object font and downsample both checked)
-            if (downSample > 0 && allowCloudFrontObject) {
-                //Make one.
-                EnsureRenderTarget(ref downsampledDepth, mcam.pixelWidth / 2, mcam.pixelHeight / 2, RenderTextureFormat.RFloat, FilterMode.Point);
-                Graphics.Blit(null, downsampledDepth, mat, 3);
-                mat.SetTexture("_DownsampledDepth", downsampledDepth);
+            EnsureRenderTarget(ref downsampledDepth, mcam.pixelWidth >> downSample, mcam.pixelHeight >> downSample, RenderTextureFormat.RFloat, FilterMode.Point);
+            if (downSample > 0) {
+                Graphics.Blit(null, downsampledDepth, mat, 3);  //Downsample the texture.
+            } else {
+                Graphics.Blit(null, downsampledDepth, mat, 4);  //Just copy it.
             }
+            mat.SetTexture("_DownsampledDepth", downsampledDepth);
 
             //1. Pass1, render the cloud tex.
             Graphics.Blit(null, undersampleBuffer, mat, 0);
