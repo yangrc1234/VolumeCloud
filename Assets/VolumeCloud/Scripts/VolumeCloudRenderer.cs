@@ -58,6 +58,7 @@ namespace Yangrc.VolumeCloud {
         private RenderTexture[] fullBuffer;
         private int fullBufferIndex;
         private RenderTexture undersampleBuffer;
+        private RenderTexture downsampledDepth;
         private Matrix4x4 prevV;
         private Camera mcam;
         private HaltonSequence sequence = new HaltonSequence() { radix = 3 };
@@ -110,6 +111,10 @@ namespace Yangrc.VolumeCloud {
             if (heightLutTexture != null) {
                 heightLutTexture.Release();
                 heightLutTexture = null;
+            }
+            if (downsampledDepth != null) {
+                downsampledDepth.Release();
+                downsampledDepth = null;
             }
         }
 
@@ -216,6 +221,15 @@ namespace Yangrc.VolumeCloud {
             mat.SetFloat("_RaymarchOffset", sequence.Get());
             mat.SetVector("_TexelSize", undersampleBuffer.texelSize);
 
+            //0. Check if we need a downsampled depth texture(allow object font and downsample both checked)
+            if (downSample > 0 && allowCloudFrontObject) {
+                //Make one.
+                EnsureRenderTarget(ref downsampledDepth, mcam.pixelWidth / 2, mcam.pixelHeight / 2, RenderTextureFormat.RFloat, FilterMode.Point);
+                Graphics.Blit(null, downsampledDepth, mat, 3);
+                mat.SetTexture("_DownsampledDepth", downsampledDepth);
+            }
+
+            //1. Pass1, render the cloud tex.
             Graphics.Blit(null, undersampleBuffer, mat, 0);
 
             //2. Pass 2, blend undersampled image with history buffer to new buffer.

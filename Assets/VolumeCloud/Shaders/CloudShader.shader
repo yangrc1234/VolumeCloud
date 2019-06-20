@@ -45,7 +45,6 @@ Shader "Yangrc/CloudShader"
 		{
 
 			CGINCLUDE
-
 			float GetRaymarchEndFromSceneDepth(float sceneDepth) {
 				float raymarchEnd = 0.0f;
 	#if ALLOW_CLOUD_FRONT_OBJECT
@@ -96,6 +95,7 @@ Shader "Yangrc/CloudShader"
 			#define MIN_SAMPLE_COUNT 16
 			#define MAX_SAMPLE_COUNT 16
 #endif
+			UNITY_DECLARE_TEX2D(_DownsampledDepth);
 			sampler2D _CameraDepthTexture;
 			float _RaymarchOffset;	//raymarch offset by halton sequence, [0,1]
 			float4 _ProjectionExtents;
@@ -129,7 +129,7 @@ Shader "Yangrc/CloudShader"
 				float4 worldPos = mul(unity_CameraToWorld,float4(vspos,1.0));
 				worldPos /= worldPos.w;
 				
-				float sceneDepth = Linear01Depth(tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(i.screenPos)).r);
+				float sceneDepth = Linear01Depth(_DownsampledDepth.Sample(sampler_DownsampledDepth, (i.screenPos / i.screenPos.w).xy));
 				float raymarchEnd = GetRaymarchEndFromSceneDepth(sceneDepth);
 				float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
 				int sample_count = lerp(MAX_SAMPLE_COUNT, MIN_SAMPLE_COUNT, abs(viewDir.y));	//dir.y ==0 means horizontal, use maximum sample count
@@ -174,6 +174,7 @@ Shader "Yangrc/CloudShader"
 
 				//These values are needed for doing extra raymarch when out of bound.
 				UNITY_DECLARE_TEX2D(_CameraDepthTexture);
+				UNITY_DECLARE_TEX2D(_DownsampledDepth);
 				float4 _ProjectionExtents;
 				float2 _TexelSize;
 
@@ -248,7 +249,7 @@ Shader "Yangrc/CloudShader"
 						float4 m1 = 0.0f, m2 = 0.0f;
 
 #if ALLOW_CLOUD_FRONT_OBJECT
-						float originalPointDepth = LinearEyeDepth(_CameraDepthTexture.Sample(sampler_CameraDepthTexture, i.uv));
+						float originalPointDepth = LinearEyeDepth(_DownsampledDepth.Sample(sampler_DownsampledDepth, i.uv));
 						float validSampleCount = 1.0f;
 #else
 						float validSampleCount = 9.0f;
@@ -265,10 +266,10 @@ Shader "Yangrc/CloudShader"
 									m2 += val * val;
 								}
 								else {
-									float2 uv = float2(i.uv + xoffset * x + yoffset * y);
+									float2 uv = i.uv + float2(x * _UndersampleCloudTex_TexelSize.x, y * _UndersampleCloudTex_TexelSize.y);
 									val = tex2Dlod(_UndersampleCloudTex, float4(uv, 0.0, 0.0));
 #if ALLOW_CLOUD_FRONT_OBJECT
-									float depth = LinearEyeDepth(_CameraDepthTexture.Sample(sampler_CameraDepthTexture, uv));
+									float depth = LinearEyeDepth(_DownsampledDepth.Sample(sampler_DownsampledDepth, uv));
 									if (abs(originalPointDepth - depth < 1.5f)) {
 										m1 += val;
 										m2 += val * val;
@@ -282,7 +283,7 @@ Shader "Yangrc/CloudShader"
 							}
 						}
 						//Code from https://zhuanlan.zhihu.com/p/64993622.
-						float gamma = 1.5f;
+						float gamma = 1.0f;
 						float4 mu = m1 / validSampleCount;
 						float4 sigma = sqrt(abs(m2 / validSampleCount - mu * mu));
 						float4 minc = mu - gamma * sigma;
@@ -316,6 +317,8 @@ Shader "Yangrc/CloudShader"
 				UNITY_DECLARE_TEX2D(_CloudTex);	//The full resolution cloud tex we generated.
 				float4 _CloudTex_TexelSize;
 				UNITY_DECLARE_TEX2D(_CameraDepthTexture);
+				UNITY_DECLARE_TEX2D(_DownsampledDepth);
+				SamplerState Point_Clamp_Sampler;
 				float4 _ProjectionExtents;
 
 				struct appdata
@@ -356,22 +359,22 @@ Shader "Yangrc/CloudShader"
 					float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
 
 					half4 mcol = tex2D(_MainTex,i.uv);
-					float4 currSample = _CloudTex.Sample(sampler_CloudTex, i.uv);
+					float4 currSample = _CloudTex.Sample(Point_Clamp_Sampler, i.uv);
 					
 #ifdef ALLOW_CLOUD_FRONT_OBJECT
 					{
-						float2 uv00 = i.uv - _CloudTex_TexelSize.xy / 2.0f;
+						float2 uv00 = i.uv - 0.5f * _CloudTex_TexelSize.xy;
 						float2 uv10 = uv00 + float2(_CloudTex_TexelSize.x, 0.0f);
 						float2 uv01 = uv00 + float2(0.0f, _CloudTex_TexelSize.y);
-						float2 uv11 = uv00 + _CloudTex_TexelSize;
+						float2 uv11 = uv00 + _CloudTex_TexelSize.xy;
 
-						float4 lowResDepth;
+						float4 lowResDepth = 0.0f;
 						float highResDepth = LinearEyeDepth(_CameraDepthTexture.Sample(sampler_CameraDepthTexture, i.uv));
 
-						lowResDepth[0] = LinearEyeDepth(_CameraDepthTexture.Sample(sampler_CameraDepthTexture, uv00));
-						lowResDepth[1] = LinearEyeDepth(_CameraDepthTexture.Sample(sampler_CameraDepthTexture, uv10));
-						lowResDepth[2] = LinearEyeDepth(_CameraDepthTexture.Sample(sampler_CameraDepthTexture, uv01));
-						lowResDepth[3] = LinearEyeDepth(_CameraDepthTexture.Sample(sampler_CameraDepthTexture, uv11));
+						lowResDepth.x = LinearEyeDepth(_DownsampledDepth.Sample(sampler_CameraDepthTexture, uv00));
+						lowResDepth.y = LinearEyeDepth(_DownsampledDepth.Sample(sampler_CameraDepthTexture, uv10));
+						lowResDepth.z = LinearEyeDepth(_DownsampledDepth.Sample(sampler_CameraDepthTexture, uv01));
+						lowResDepth.w = LinearEyeDepth(_DownsampledDepth.Sample(sampler_CameraDepthTexture, uv11));
 
 						float4 depthDiff = abs(lowResDepth - highResDepth);
 						float accumDiff = dot(depthDiff, float4(1, 1, 1, 1));
@@ -385,30 +388,36 @@ Shader "Yangrc/CloudShader"
 						{
 							float minDepthDiff = depthDiff[0];
 							float2 nearestUv = uv00;
+							int index = 0;
 
 							if (depthDiff[1] < minDepthDiff)
 							{
 								nearestUv = uv10;
 								minDepthDiff = depthDiff[1];
+								index = 1;
 							}
 
 							if (depthDiff[2] < minDepthDiff)
 							{
 								nearestUv = uv01;
 								minDepthDiff = depthDiff[2];
+							
+								index = 2;
 							}
 
 							if (depthDiff[3] < minDepthDiff)
 							{
 								nearestUv = uv11;
 								minDepthDiff = depthDiff[3];
+								index = 3;
 							}
-							currSample = _CloudTex.Sample(sampler_CameraDepthTexture, nearestUv);
 
+							currSample = _CloudTex.Sample(Point_Clamp_Sampler, nearestUv);
+							;
 						}
 					}
 #endif
-
+					
 					float depth = currSample.g;
 					
 					float3 sunColor;
@@ -470,5 +479,64 @@ Shader "Yangrc/CloudShader"
 				}
 					ENDCG
 				}
+
+			//Pass4, depth downsample. Only used when it's necessary.
+				Pass{
+					Cull Off ZWrite Off ZTest Always
+					CGPROGRAM
+					#pragma vertex vert
+					#pragma fragment frag
+
+					#include "UnityCG.cginc"
+
+					//#define USE_YANGRC_AP	//Do we use atmosphere perspective? turn off this if ap is not needed.
+
+					UNITY_DECLARE_TEX2D(_CameraDepthTexture);
+					float4 _CameraDepthTexture_TexelSize;
+					float4 _CloudTex_TexelSize;
+
+					struct appdata
+					{
+						float4 vertex : POSITION;
+						float2 uv : TEXCOORD0;
+					};
+
+					struct v2f
+					{
+						float2 uv : TEXCOORD0;
+						float2 uv00 : TEXCOORD1;
+						float2 uv10 : TEXCOORD2;
+						float2 uv01 : TEXCOORD3;
+						float2 uv11 : TEXCOORD4;
+						float4 vertex : SV_POSITION;
+					};
+
+				v2f vert(appdata v)
+				{
+					v2f o;
+					o.vertex = UnityObjectToClipPos(v.vertex);
+					o.uv = v.uv;
+
+					o.uv00 = v.uv - 0.5 * _CameraDepthTexture_TexelSize.xy;
+					o.uv10 = o.uv00 + float2(_CameraDepthTexture_TexelSize.x, 0.0);
+					o.uv01 = o.uv00 + float2(0.0, _CameraDepthTexture_TexelSize.y);
+					o.uv11 = o.uv00 + _CameraDepthTexture_TexelSize.xy;
+
+					return o;
+				}
+
+				float frag(v2f i) : SV_Target
+				{
+					float4 depth;
+					depth[0] = _CameraDepthTexture.Sample(sampler_CameraDepthTexture, i.uv00);
+					depth[1] = _CameraDepthTexture.Sample(sampler_CameraDepthTexture, i.uv10);
+					depth[2] = _CameraDepthTexture.Sample(sampler_CameraDepthTexture, i.uv01);
+					depth[3] = _CameraDepthTexture.Sample(sampler_CameraDepthTexture, i.uv11);
+				
+					return max(depth[0], max(depth[1], max(depth[2], depth[3])));
+				}
+					ENDCG
+				}
+
 	}
 }
