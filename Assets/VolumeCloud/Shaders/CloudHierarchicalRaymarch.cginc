@@ -39,22 +39,26 @@ float IntersectWithCellBoundary(float3 origin, float3 v, uint zlevel, int2 cellI
 
 float HierarchicalRaymarch(float3 startPos, float3 dir, float maxSampleDistance, int max_sample_count, float raymarchOffset, out float intensity, out float depth, out int iteration_count) {
     float sampleStart, sampleEnd;
-	if (!resolve_ray_start_end(startPos, dir, sampleStart, sampleEnd)) {
+	if (!resolve_ray_start_end(startPos, dir, sampleStart, sampleEnd) ) {
 		intensity = 0.0;
 		depth = 1e6;
 		return 0;
 	}
     float3 sampleStartPos = startPos + dir * sampleStart;
-	if (sampleStartPos.y < -200) {	//Below horizon.
+	if (
+		sampleEnd <= sampleStart ||
+		sampleStartPos.y < -200) {	//Below horizon.
 		intensity = 0.0;
 	    depth = 1e6;
 		return 0.0;
 	}
 
+	sampleEnd = min(maxSampleDistance, sampleEnd);
+
 	float sample_step = min((sampleEnd - sampleStart) / max_sample_count, 1000);
     float3 v = sample_step * dir;
     float stepSize = length(v);
-    float maxStepCount = min(maxSampleDistance, sampleEnd) / stepSize;
+    float maxStepCount = sampleEnd / stepSize;
 
 	uint currentZLevel = 2;
     float currentStep = sampleStart / stepSize + raymarchOffset;
