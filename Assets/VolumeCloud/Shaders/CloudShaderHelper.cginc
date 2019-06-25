@@ -161,6 +161,8 @@ float SampleDensity(float3 worldPos,int lod, bool cheap, out float wetness) {
 		//On cloud marked with high erodness, we see thin line style, so when doing erodness we use detail.
 		float detail_modifier = lerp(1.0f - detailsampleResult, detailsampleResult, densityAndErodeness.y);
 		sampleResult = RemapClamped(sampleResult, min(0.8, (1.0f - detailsampleResult) * _DetailStrength), 1.0, 0.0, 1.0);
+	} else {
+		sampleResult = RemapClamped(sampleResult, min(0.8, _DetailStrength * 0.5f), 1.0, 0.0, 1.0);
 	}
 
 	//sampleResult = pow(sampleResult, 1.2);
