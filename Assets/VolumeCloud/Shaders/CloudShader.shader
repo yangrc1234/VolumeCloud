@@ -343,6 +343,9 @@ Shader "Yangrc/CloudShader"
 #endif
 				};
 
+#ifdef ALLOW_CLOUD_FRONT_OBJECT
+#include "BilateralUpsampleHelper.cginc"
+#endif
 				v2f vert(appdata v)
 				{
 					v2f o;
@@ -374,53 +377,11 @@ Shader "Yangrc/CloudShader"
 					float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
 
 					half4 mcol = tex2D(_MainTex,i.uv);
-					float4 currSample = _CloudTex.Sample(Point_Clamp_Sampler, i.uv);
 					
 #ifdef ALLOW_CLOUD_FRONT_OBJECT
-					{
-						float4 lowResDepth = 0.0f;
-						float highResDepth = LinearEyeDepth(_CameraDepthTexture.Sample(sampler_CameraDepthTexture, i.uv));
-
-						lowResDepth.x = LinearEyeDepth(_DownsampledDepth.Sample(sampler_CameraDepthTexture, i.uv00));
-						lowResDepth.y = LinearEyeDepth(_DownsampledDepth.Sample(sampler_CameraDepthTexture, i.uv10));
-						lowResDepth.z = LinearEyeDepth(_DownsampledDepth.Sample(sampler_CameraDepthTexture, i.uv01));
-						lowResDepth.w = LinearEyeDepth(_DownsampledDepth.Sample(sampler_CameraDepthTexture, i.uv11));
-
-						float4 depthDiff = abs(lowResDepth - highResDepth);
-						float accumDiff = dot(depthDiff, float4(1, 1, 1, 1));
-
-						[branch]
-						if (accumDiff < 1.5f) // small error, not an edge -> use bilinear filter
-						{
-							currSample = _CloudTex.Sample(sampler_CloudTex, i.uv);		//just linear sample.
-						}
-						else 
-						{
-							float minDepthDiff = depthDiff[0];
-							float2 nearestUv = i.uv00;
-
-							if (depthDiff[1] < minDepthDiff)
-							{
-								nearestUv = i.uv10;
-								minDepthDiff = depthDiff[1];
-							}
-
-							if (depthDiff[2] < minDepthDiff)
-							{
-								nearestUv = i.uv01;
-								minDepthDiff = depthDiff[2];
-							}
-
-							if (depthDiff[3] < minDepthDiff)
-							{
-								nearestUv = i.uv11;
-								minDepthDiff = depthDiff[3];
-							}
-
-							currSample = _CloudTex.Sample(Point_Clamp_Sampler, nearestUv);
-							;
-						}
-					}
+					float4 currSample = Upsample(i, _CloudTex, _CameraDepthTexture, _DownsampledDepth, sampler_CameraDepthTexture, sampler_CloudTex);
+#else
+					float4 currSample = _CloudTex.Sample(sampler_CloudTex, i.uv);
 #endif
 					
 					float depth = currSample.g;
