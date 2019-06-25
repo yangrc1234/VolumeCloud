@@ -320,6 +320,7 @@ Shader "Yangrc/CloudShader"
 				UNITY_DECLARE_TEX2D(_DownsampledDepth);
 				SamplerState Point_Clamp_Sampler;
 				float4 _ProjectionExtents;
+				float3 _AtmosphereColor;
 
 				struct appdata
 				{
@@ -464,8 +465,8 @@ Shader "Yangrc/CloudShader"
 						result.rgb = result.rgb * transmittanceToTarget + scatteringBetween;
 					}
 #else
-					float atmosphericBlendFactor = exp(-saturate(depth / _AtmosphereColorSaturateDistance));
-					result.a *= atmosphericBlendFactor;
+					float atmosphericBlendFactor = exp(-depth / _AtmosphereColorSaturateDistance);
+					result.rgb = lerp(_AtmosphereColor, result.rgb, saturate(atmosphericBlendFactor));
 #endif
 
 #if ALLOW_CLOUD_FRONT_OBJECT	//The result calculated from previous pass is already the part in front of object.
