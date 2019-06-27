@@ -3,16 +3,19 @@
  
 float GetDensity(float3 startPos, float3 dir, float maxSampleDistance, int sample_count, float raymarchOffset, out float intensity,out float depth) {
 	float sampleStart, sampleEnd;
-	if (!resolve_ray_start_end(startPos, dir, sampleStart, sampleEnd)) {
+	if (!resolve_ray_start_end(startPos, dir, sampleStart, sampleEnd) ) {
 		intensity = 0.0;
 		depth = 1e6;
 		return 0;
 	}
 
+	sampleEnd = min(maxSampleDistance, sampleEnd);
 	float sample_step = min((sampleEnd - sampleStart) / sample_count, 1000);
 
     float3 sampleStartPos = startPos + dir * sampleStart;
-	if (sampleStartPos.y < -200) {	//Below horizon.
+	if (
+		sampleEnd <= sampleStart ||	//Something blocked behind cloud and viewer.
+		sampleStartPos.y < -200) {	//Below horizon.
 		intensity = 0.0;
 	    depth = 1e6;
 		return 0.0;

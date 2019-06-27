@@ -104,19 +104,18 @@ float HenryGreenstein(float g, float cosTheta) {
 }
 
 float4 ProcessBaseTex(float4 texSample) {
-	texSample = saturate(pow(texSample, 1.8f));
-
+	texSample = saturate(texSample - 0.3f) / 0.7f;
 	float low_freq_fBm = (texSample.g * .625) + (texSample.b * 0.25) + (texSample.a * 0.125);
-	float sampleResult = RemapClamped(low_freq_fBm, -0.5 * texSample.r, 1.0, 0.0, 1.0);
+	float sampleResult = RemapClamped(low_freq_fBm, -0.3f * texSample.r, 1.0, 0.0, 1.0);
 
-	return sampleResult * 1.5f;
+	return min(1.0f, sampleResult * 2.0f);
 }
 
 float ApplyCoverageToDensity(float sampleResult, float coverage){
 	//sampleResult = RemapClamped(sampleResult, 1.0 - coverage, 1.0, 0.0, 1.0);
 	//sampleResult *= coverage;
 	sampleResult -= (1.0f - coverage);
-	return sampleResult;
+	return max(0.0f, sampleResult);
 }
 
 float SampleDensity(float3 worldPos,int lod, bool cheap, out float wetness) {
@@ -128,7 +127,7 @@ float SampleDensity(float3 worldPos,int lod, bool cheap, out float wetness) {
 	coverageSampleUV.xy = (coverageSampleUV.xy + 0.5);
 	float3 weatherData = tex2Dlod(_WeatherTex, coverageSampleUV);
 	weatherData *= float3(_CloudCoverageModifier, 1.0, _CloudTypeModifier);
-	float cloudCoverage = RemapClamped(weatherData.r, 0.0 ,1.0, 0.3, 1.0);
+	float cloudCoverage = weatherData.r;
 	float cloudType = weatherData.b;
 	wetness = weatherData.g;
 
@@ -161,7 +160,9 @@ float SampleDensity(float3 worldPos,int lod, bool cheap, out float wetness) {
 		//On cloud marked with low erodness, we see cauliflower style, so when doing erodness, we use 1.0f - detail.
 		//On cloud marked with high erodness, we see thin line style, so when doing erodness we use detail.
 		float detail_modifier = lerp(1.0f - detailsampleResult, detailsampleResult, densityAndErodeness.y);
-		sampleResult = RemapClamped(sampleResult, min(0.8, detail_modifier * _DetailStrength), 1.0, 0.0, 1.0);
+		sampleResult = RemapClamped(sampleResult, min(0.8, (1.0f - detailsampleResult) * _DetailStrength), 1.0, 0.0, 1.0);
+	} else {
+		sampleResult = RemapClamped(sampleResult, min(0.8, _DetailStrength * 0.5f), 1.0, 0.0, 1.0);
 	}
 
 	//sampleResult = pow(sampleResult, 1.2);

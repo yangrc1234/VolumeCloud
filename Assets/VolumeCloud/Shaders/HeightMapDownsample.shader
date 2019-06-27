@@ -24,6 +24,7 @@ Shader "Yangrc/HeightMapDownsample"
 
 		sampler2D _WeatherTex;
 		sampler2D _HeightLut;
+		float4 _HeightLut_TexelSize;
 
 		struct appdata
 		{
@@ -47,7 +48,7 @@ Shader "Yangrc/HeightMapDownsample"
 		float frag (Interpolator i) : SV_Target
 		{
 			float3 weatherData = tex2D(_WeatherTex, i.uv);
-			float height = tex2D(_HeightLut, float2(weatherData.xz));	/*Index using coverage(x) and heightpercent(z)*/
+			float height = tex2D(_HeightLut, float2(weatherData.xz + _HeightLut_TexelSize.xy * 0.5f));	/*Index using coverage(x) and heightpercent(z)*/
 			return height;
 		}
 

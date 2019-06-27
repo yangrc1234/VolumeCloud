@@ -17,11 +17,12 @@ void CSMain (uint3 id : SV_DispatchThreadID)
 	heightLutResult.GetDimensions(w, h);
 	
 	float coverage, cloudType;
-	coverage = (0.5f + id.x) / w;
-	cloudType = (0.5f + id.y) / h;
+	coverage = ((float)id.x) / w;
+	cloudType = ((float)id.y) / h;
 	
 	for (float heightPercent = 1.0f; heightPercent > 0.0f; heightPercent -= 1.0f / SAMPLE_COUNT) {
-		float density = tex2Dlod(heightDensityMap, float4(cloudType, heightPercent, 0.0, 0.0)).r * ProcessBaseTex(1.0f);
+		float fakeSample = ProcessBaseTex(1.0f);
+		float density = fakeSample * tex2Dlod(heightDensityMap, float4(cloudType, heightPercent, 0.0, 0.0)).r;
 		density = ApplyCoverageToDensity(density, coverage);
 		if (density > 0.0f) {
 			break;

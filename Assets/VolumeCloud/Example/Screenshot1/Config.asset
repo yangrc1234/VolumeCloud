@@ -21,20 +21,21 @@ MonoBehaviour:
   topOffset: 0
   detailTexture: {fileID: 11700000, guid: c978a1d1fdb99d54eb7910eb562fcbd7, type: 2}
   detailTile: 36
-  detailStrength: 0.2
+  detailStrength: 0.5
   curlNoise: {fileID: 2800000, guid: 864afbdb4b1b36c42be5cac8f2556237, type: 2}
-  curlTile: 0.01
-  curlStrength: 5
+  curlTile: 0.2
+  curlStrength: 1
   overallDensity: 1
   cloudTypeModifier: 1
   cloudCoverageModifier: 1
   windDirection: {x: 1, y: 1}
   windSpeed: 0
   ambientColor: {r: 0.29525304, g: 0.29626313, b: 0.31617647, a: 0.02745098}
-  scatteringCoefficient: 0.5
-  extinctionCoefficient: 0.52
+  scatteringCoefficient: 0.2
+  extinctionCoefficient: 0.21
   multiScatteringScattering: 0.5
   multiScatteringExtinction: 0.5
   multiScatteringEC: 0.5
   silverSpread: 0.1
-  atmosphereSaturateDistance: 60000
+  atmosphereSaturateDistance: 25000
+  atmosphereColor: {r: 0.30147058, g: 0.30147058, b: 0.30147058, a: 1}

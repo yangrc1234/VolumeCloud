@@ -25,7 +25,7 @@ float IntersectWithCellBoundary(float3 origin, float3 v, uint zlevel, int2 cellI
     float cellSpacing = _WeatherTexSize / currentLevelSize;
     
     //x-axis plane.
-    float2 xAxisPlanes = (cellIndex.x + float2(1.0, 0.0)) * cellSpacing;   //Same as float2((cellIndex.x + 0.5) * cellSpacing), (cellIndex.x - 0.5) * cellSpacing))
+    float2 xAxisPlanes = (cellIndex.x + float2(0.0, 1.0)) * cellSpacing;   //Same as float2((cellIndex.x + 0.5) * cellSpacing), (cellIndex.x - 0.5) * cellSpacing))
     float2 xAxisIntersectT = (xAxisPlanes - origin.x) / v.x;
 
     //z-axis planes.
@@ -37,24 +37,28 @@ float IntersectWithCellBoundary(float3 origin, float3 v, uint zlevel, int2 cellI
     return min(max(xAxisIntersectT.x, xAxisIntersectT.y), max(zAxisIntersectT.x, zAxisIntersectT.y));
 }
 
-float HierarchicalRaymarch(float3 startPos, float3 dir, float maxSampleDistance, int max_sample_count, float raymarchOffset, out float intensity, out float depth, out int iteration_count) {
+float HierarchicalRaymarch(float3 viewerPos, float3 dir, float maxSampleDistance, int max_sample_count, float raymarchOffset, out float intensity, out float depth, out int iteration_count) {
     float sampleStart, sampleEnd;
-	if (!resolve_ray_start_end(startPos, dir, sampleStart, sampleEnd)) {
+	if (!resolve_ray_start_end(viewerPos, dir, sampleStart, sampleEnd) ) {
 		intensity = 0.0;
 		depth = 1e6;
 		return 0;
 	}
-    float3 sampleStartPos = startPos + dir * sampleStart;
-	if (sampleStartPos.y < -200) {	//Below horizon.
+    float3 sampleStartPos = viewerPos + dir * sampleStart;
+	if (
+		sampleEnd <= sampleStart ||
+		sampleStartPos.y < -200) {	//Below horizon.
 		intensity = 0.0;
 	    depth = 1e6;
 		return 0.0;
 	}
 
+	sampleEnd = min(maxSampleDistance, sampleEnd);
+
 	float sample_step = min((sampleEnd - sampleStart) / max_sample_count, 1000);
     float3 v = sample_step * dir;
     float stepSize = length(v);
-    float maxStepCount = min(maxSampleDistance, sampleEnd) / stepSize;
+    float maxStepCount = sampleEnd / stepSize;
 
 	uint currentZLevel = 2;
     float currentStep = sampleStart / stepSize + raymarchOffset;
@@ -66,7 +70,7 @@ float HierarchicalRaymarch(float3 startPos, float3 dir, float maxSampleDistance,
 
 	[loop]
     while(currentStep < maxStepCount && iteration_count++ < 64) {
-        float3 raypos = startPos + currentStep * v;
+        float3 raypos = viewerPos + currentStep * v;
         float2 uv = (raypos.xz / _WeatherTexSize) + 0.5;
         float height = tex2Dlod(_HiHeightMap, float4(uv, 0.0, currentZLevel)) * (_CloudEndHeight - _CloudStartHeight )+ _CloudStartHeight;
         int2 oldCellIndex = GetCellIndex(raypos.xz, currentZLevel);
@@ -92,8 +96,8 @@ float HierarchicalRaymarch(float3 startPos, float3 dir, float maxSampleDistance,
             //Move raypos to just beyond rayhitStepSize
             currentStep += ceil(rayhitStepSize);            
             if (currentZLevel == _HiHeightMinLevel) { //We can do raymarch now.
-				IntegrateRaymarch(startPos, raypos, dir, stepSize, result);
-				if (result.intTransmittance < 0.005f) {	//Save gpu, save the world.
+				IntegrateRaymarch(viewerPos, raypos, dir, stepSize, result);
+				if (result.intTransmittance < 0.01f) {	//Save gpu, save the world.
 					break;
 				}
                 currentStep += 1.0f;

@@ -58,6 +58,7 @@ namespace Yangrc.VolumeCloud {
         private RenderTexture[] fullBuffer;
         private int fullBufferIndex;
         private RenderTexture undersampleBuffer;
+        private RenderTexture downsampledDepth;
         private Matrix4x4 prevV;
         private Camera mcam;
         private HaltonSequence sequence = new HaltonSequence() { radix = 3 };
@@ -111,6 +112,10 @@ namespace Yangrc.VolumeCloud {
                 heightLutTexture.Release();
                 heightLutTexture = null;
             }
+            if (downsampledDepth != null) {
+                downsampledDepth.Release();
+                downsampledDepth = null;
+            }
         }
 
         private void Start() {
@@ -131,7 +136,7 @@ namespace Yangrc.VolumeCloud {
                 heightPreprocessShader.Dispatch(kernal, heightLutTextureSize.x / 32, heightLutTextureSize.y / 32, 1);
             }
 
-            EnsureRenderTarget(ref hiHeightTexture, 512, 512, RenderTextureFormat.RFloat, configuration.weatherTex.filterMode, wrapMode: configuration.weatherTex.wrapMode, randomWrite: true, useMipmap:true);
+            EnsureRenderTarget(ref hiHeightTexture, 512, 512, RenderTextureFormat.RFloat, FilterMode.Point, wrapMode: configuration.weatherTex.wrapMode, randomWrite: true, useMipmap:true);
 
             EnsureArray(ref hiHeightTempTextures, 10);
             for (int i = 0; i <= 9; i++) {
@@ -216,6 +221,16 @@ namespace Yangrc.VolumeCloud {
             mat.SetFloat("_RaymarchOffset", sequence.Get());
             mat.SetVector("_TexelSize", undersampleBuffer.texelSize);
 
+            //0. Check if we need a downsampled depth texture(allow object font and downsample both checked)
+            EnsureRenderTarget(ref downsampledDepth, mcam.pixelWidth >> downSample, mcam.pixelHeight >> downSample, RenderTextureFormat.RFloat, FilterMode.Point);
+            if (downSample > 0) {
+                Graphics.Blit(null, downsampledDepth, mat, 3);  //Downsample the texture.
+            } else {
+                Graphics.Blit(null, downsampledDepth, mat, 4);  //Just copy it.
+            }
+            mat.SetTexture("_DownsampledDepth", downsampledDepth);
+
+            //1. Pass1, render the cloud tex.
             Graphics.Blit(null, undersampleBuffer, mat, 0);
 
             //2. Pass 2, blend undersampled image with history buffer to new buffer.
