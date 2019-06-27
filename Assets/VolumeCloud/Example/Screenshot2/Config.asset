@@ -28,13 +28,14 @@ MonoBehaviour:
   overallDensity: 1
   cloudTypeModifier: 1
   cloudCoverageModifier: 1
-  windDirection: {x: 1, y: 1}
-  windSpeed: 400
+  windDirection: {x: -1, y: 1}
+  windSpeed: 0
   ambientColor: {r: 0.29525304, g: 0.29626313, b: 0.31617647, a: 0.02745098}
   scatteringCoefficient: 0.5
   extinctionCoefficient: 0.52
   multiScatteringScattering: 0.5
   multiScatteringExtinction: 0.5
   multiScatteringEC: 0.5
-  silverSpread: 0.1
+  silverSpread: 0.5
   atmosphereSaturateDistance: 60000
+  atmosphereColor: {r: 0.627451, g: 0.70738566, b: 0.78431374, a: 1}

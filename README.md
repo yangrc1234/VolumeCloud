@@ -86,17 +86,22 @@ The multi-scattering section contains parameters for simulate multi-scattering e
 This value controls how does the silver effect spread over cloud. Lower value causes silver effect more concentrated around sun and brighter.  
 
 ### Lighting - Atmosphere
-Atmosphere saturate distance indicates how far will the cloud be invisible due to atmosphere. The cloud alpha value will begin to drop in distance, and finally become transparent in the distance set.  
+These settings simulate aerial perspective effect for distant cloud. Cloud color is modified with following code: 
+```
+float atmosphericBlendFactor = exp(-depth / _AtmosphereColorSaturateDistance);
+result.rgb = lerp(_AtmosphereColor, result.rgb, saturate(atmosphericBlendFactor));
+```
 
 ### Wind  
 Wind effect simulates the cloud moving by rotating the noise texture. So the overall cloud position won't be changed.  
 
 ## Known issues
-Object edge glitch when allow cloud front is checked and downsampled, due to edge-preserving upsample is not implemented yet.
+Nothing yet. 
 
 ## TODO
 - [x] Add aerial perspective things.  
 - [x] Extend view distance above cloud.
+- [ ] Cloud shadow implementation.
 - [ ] HDRP integration?  
 - [ ] Weather map generator.  
 - [ ] Make the noise generator usable.  
@@ -107,6 +112,7 @@ Object edge glitch when allow cloud front is checked and downsampled, due to edg
 [3][TAA from playdead](https://github.com/playdeadgames/temporal)  
 [4][Physically Based Sky, Atmosphere and Cloud Rendering in Frostbite](https://media.contentapi.ea.com/content/dam/eacom/frostbite/files/s2016-pbs-frostbite-sky-clouds-new.pdf)  
 [5][Cool TAA history clip from zhihu](https://zhuanlan.zhihu.com/p/64993622)
+[6][Bilateral upsample code from SlightlyMad/VolumetricLights](https://github.com/SlightlyMad/VolumetricLights)
 
 ## Implementation Details
 If you're intersted in how volume cloud is implemented, see the references. Or if you're intersted at what improvements I made and how, refer to the IMPLEMENTATIONDETAIL.md at root folder.
@@ -119,3 +125,4 @@ If you're intersted in how volume cloud is implemented, see the references. Or i
 19/3/4 - Rewrite lighting code, using methods from [4], it should be very "physically based" now.  
 19/5/18 - Rewrite raymarch and TAA. The 4x4 pattern is obsoleted. A full-screen raymarch with much lower sample count and temporal reprojection is used now.  
 19/5/31 - Hi-Height technique implemented.  
+19/6/25 - Rewrite shape function, the "cauliflower" shape is more visible now. Fixed object edge glitch when downsample is used.

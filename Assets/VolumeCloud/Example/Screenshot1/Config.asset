@@ -31,10 +31,11 @@ MonoBehaviour:
   windDirection: {x: 1, y: 1}
   windSpeed: 0
   ambientColor: {r: 0.29525304, g: 0.29626313, b: 0.31617647, a: 0.02745098}
-  scatteringCoefficient: 0.5
-  extinctionCoefficient: 0.52
+  scatteringCoefficient: 0.2
+  extinctionCoefficient: 0.21
   multiScatteringScattering: 0.5
   multiScatteringExtinction: 0.5
   multiScatteringEC: 0.5
   silverSpread: 0.1
-  atmosphereSaturateDistance: 60000
+  atmosphereSaturateDistance: 25000
+  atmosphereColor: {r: 0.30147058, g: 0.30147058, b: 0.30147058, a: 1}
