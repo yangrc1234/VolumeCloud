@@ -1,4 +1,8 @@
 # Volume Cloud for Unity3D
+
+This project won't be maintained in the future, since to work with modern Unity(HDRP, URP) there's too much work has to be done. And I have no intention to make it look better or more features either(I mainly use UE4 for now).  
+But still, if you have any idea or problem about volume cloud, I'm glad to hear them and share my thought!  
+
 ![](./Screenshots/1.png)
 *Cloud at dawn.*  
 ![](./Screenshots/2.png)
